@@ -1,0 +1,15 @@
+source,db_type,total_rows,total_tables,avg_completeness
+TRUE,stats,565497,4,86.2775
+app,ffa,316932,5,91.502
+app,stats,307249,4,85.8325
+app,simulation,194140,2,99.885
+TRUE,ffa,80252,5,92.88
+app,players,70181,2,72.955
+TRUE,simulation,47882,2,100
+app,round,41338,5,95.05199999999999
+TRUE,players,18858,2,72.57
+TRUE,round,9315,5,94.608
+app,recap,311,1,100
+app,teams,32,2,100
+TRUE,teams,28,2,100
+TRUE,recap,0,1,NA

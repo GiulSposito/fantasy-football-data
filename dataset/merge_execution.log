@@ -1,0 +1,295 @@
+[2026-03-08 13:41:56] === MERGE HISTORICAL DATA - START ===
+[2026-03-08 13:41:56] Consolidating DudesData 2020-2025
+[2026-03-08 13:41:56] 
+=== LOADING SOURCE DATA ===
+[2026-03-08 13:41:56] 
+=== MERGING DATABASES ===
+[2026-03-08 13:41:56] --- Processing ffa_db.rds ---
+[2026-03-08 13:41:56] Loading ffa_db.rds from year 2020...
+[2026-03-08 13:41:56]   ✓ Loaded 5 tables from 2020
+[2026-03-08 13:41:56] Loading ffa_db.rds from year 2021...
+[2026-03-08 13:41:56]   ✓ Loaded 5 tables from 2021
+[2026-03-08 13:41:56] Loading ffa_db.rds from year 2022...
+[2026-03-08 13:41:56]   ✓ Loaded 5 tables from 2022
+[2026-03-08 13:41:56] Loading ffa_db.rds from year 2023-25...
+[2026-03-08 13:41:57]   ✓ Loaded 5 tables from 2023-25
+[2026-03-08 13:41:57] Tables to merge: ffa_scrape, ffa_player_ids, ffa_players, ffa_projtable, ffa_proj_source_points
+[2026-03-08 13:41:57]   Merging table: ffa_scrape
+[2026-03-08 13:41:57]     Rows before merge: 123 (16, 1, 34, 72)
+[2026-03-08 13:41:57]     Deduplicated using: season, week, timestamp
+[2026-03-08 13:41:57]     Rows after merge: 123
+[2026-03-08 13:41:57]   Validating ffa_scrape...
+[2026-03-08 13:41:57]     Seasons: 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:41:58]     Week coverage by season:
+[2026-03-08 13:41:58]       2020: weeks 1-16
+[2026-03-08 13:41:58]       2021: weeks 1-1
+[2026-03-08 13:41:58]       2022: weeks 1-17
+[2026-03-08 13:41:58]       2023: weeks 1-17
+[2026-03-08 13:41:58]       2024: weeks 2-17
+[2026-03-08 13:41:58]       2025: weeks 0-17
+[2026-03-08 13:41:58]     ✓ Validation passed
+[2026-03-08 13:41:58]   Merging table: ffa_player_ids
+[2026-03-08 13:41:58]     Rows before merge: 8070 (930, 967, 778, 5395)
+[2026-03-08 13:41:58]     ✗ ERROR merging ffa_player_ids: Can't combine `..1$id` <integer> and `..4$id` <character>.
+[2026-03-08 13:41:58]   Merging table: ffa_players
+[2026-03-08 13:41:58]     Rows before merge: 3824 (944, 981, 871, 1028)
+[2026-03-08 13:41:58]     ✗ ERROR merging ffa_players: Can't combine `..1$id` <integer> and `..4$id` <character>.
+[2026-03-08 13:41:58]   Merging table: ffa_projtable
+[2026-03-08 13:41:58]     Rows before merge: 190844 (43428, 2943, 30861, 113612)
+[2026-03-08 13:41:58]     ✗ ERROR merging ffa_projtable: Can't combine `..1$id` <double> and `..4$id` <character>.
+[2026-03-08 13:41:58]   Merging table: ffa_proj_source_points
+[2026-03-08 13:41:58]     Rows before merge: 304920 (50436, 3760, 53899, 196825)
+[2026-03-08 13:41:58]     ✗ ERROR merging ffa_proj_source_points: Can't combine `..1$id` <integer> and `..4$id` <character>.
+[2026-03-08 13:41:58] Creating dm object for ffa_db.rds...
+[2026-03-08 13:41:59] ✓ Saved dataset/ffa_db.rds
+[2026-03-08 13:41:59]   File size: 6.75 MB
+[2026-03-08 13:41:59] --- Processing nfl_teams_db.rds ---
+[2026-03-08 13:41:59] Loading nfl_teams_db.rds from year 2020...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2020
+[2026-03-08 13:41:59] Loading nfl_teams_db.rds from year 2021...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2021
+[2026-03-08 13:41:59] Loading nfl_teams_db.rds from year 2022...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2022
+[2026-03-08 13:41:59] Loading nfl_teams_db.rds from year 2023-25...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2023-25
+[2026-03-08 13:41:59] Tables to merge: nfl_teams, nfl_owners
+[2026-03-08 13:41:59]   Merging table: nfl_teams
+[2026-03-08 13:41:59]     Rows before merge: 44 (14, 14, 16)
+[2026-03-08 13:41:59]     Deduplicated using: teamId
+[2026-03-08 13:41:59]     Rows after merge: 16
+[2026-03-08 13:41:59]     Duplicates removed: 28
+[2026-03-08 13:41:59]   Validating nfl_teams...
+[2026-03-08 13:41:59]     ✓ Validation passed
+[2026-03-08 13:41:59]   Merging table: nfl_owners
+[2026-03-08 13:41:59]     Rows before merge: 44 (14, 14, 16)
+[2026-03-08 13:41:59]     Rows after merge: 44
+[2026-03-08 13:41:59]   Validating nfl_owners...
+[2026-03-08 13:41:59]     ✓ Validation passed
+[2026-03-08 13:41:59] Creating dm object for nfl_teams_db.rds...
+[2026-03-08 13:41:59] ✓ Saved dataset/nfl_teams_db.rds
+[2026-03-08 13:41:59]   File size: 0 MB
+[2026-03-08 13:41:59] --- Processing nfl_players_db.rds ---
+[2026-03-08 13:41:59] Loading nfl_players_db.rds from year 2020...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2020
+[2026-03-08 13:41:59] Loading nfl_players_db.rds from year 2021...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2021
+[2026-03-08 13:41:59] Loading nfl_players_db.rds from year 2022...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2022
+[2026-03-08 13:41:59] Loading nfl_players_db.rds from year 2023-25...
+[2026-03-08 13:41:59]   ✓ Loaded 2 tables from 2023-25
+[2026-03-08 13:41:59] Tables to merge: nfl_players, nfl_player_injury_status
+[2026-03-08 13:41:59]   Merging table: nfl_players
+[2026-03-08 13:41:59]     Rows before merge: 4735 (1126, 1035, 957, 1617)
+[2026-03-08 13:41:59]     Deduplicated using: playerId
+[2026-03-08 13:41:59]     Rows after merge: 2309
+[2026-03-08 13:41:59]     Duplicates removed: 2426
+[2026-03-08 13:41:59]   Validating nfl_players...
+[2026-03-08 13:41:59]     ✓ Validation passed
+[2026-03-08 13:41:59]   Merging table: nfl_player_injury_status
+[2026-03-08 13:41:59]     Rows before merge: 120052 (17892, 17471, 16125, 68564)
+[2026-03-08 13:41:59]     Deduplicated using: playerId, timestamp
+[2026-03-08 13:41:59]     Rows after merge: 120052
+[2026-03-08 13:41:59]   Validating nfl_player_injury_status...
+[2026-03-08 13:41:59]     ✓ Validation passed
+[2026-03-08 13:41:59] Creating dm object for nfl_players_db.rds...
+[2026-03-08 13:41:59] ✓ Saved dataset/nfl_players_db.rds
+[2026-03-08 13:41:59]   File size: 0.26 MB
+[2026-03-08 13:41:59] --- Processing nfl_stats_db.rds ---
+[2026-03-08 13:41:59] Loading nfl_stats_db.rds from year 2020...
+[2026-03-08 13:41:59]   ✓ Loaded 4 tables from 2020
+[2026-03-08 13:41:59] Loading nfl_stats_db.rds from year 2021...
+[2026-03-08 13:41:59]   ✓ Loaded 4 tables from 2021
+[2026-03-08 13:41:59] Loading nfl_stats_db.rds from year 2022...
+[2026-03-08 13:42:00]   ✓ Loaded 4 tables from 2022
+[2026-03-08 13:42:00] Loading nfl_stats_db.rds from year 2023-25...
+[2026-03-08 13:42:00]   ✓ Loaded 4 tables from 2023-25
+[2026-03-08 13:42:00] Tables to merge: nfl_stat_dictionary, nfl_players_points, nfl_players_stats, nfl_players_adv_stats
+[2026-03-08 13:42:00]   Merging table: nfl_stat_dictionary
+[2026-03-08 13:42:00]     Rows before merge: 318 (81, 63, 79, 95)
+[2026-03-08 13:42:00]     Rows after merge: 318
+[2026-03-08 13:42:00]   Validating nfl_stat_dictionary...
+[2026-03-08 13:42:00]     ✓ Validation passed
+[2026-03-08 13:42:00]   Merging table: nfl_players_points
+[2026-03-08 13:42:00]     Rows before merge: 81199 (14416, 15453, 14824, 36506)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, playerId
+[2026-03-08 13:42:00]     Rows after merge: 68757
+[2026-03-08 13:42:00]     Duplicates removed: 12442
+[2026-03-08 13:42:00]   Validating nfl_players_points...
+[2026-03-08 13:42:00]     Seasons: 2019, 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2019: weeks 0-17
+[2026-03-08 13:42:00]       2020: weeks 0-17
+[2026-03-08 13:42:00]       2021: weeks 0-17
+[2026-03-08 13:42:00]       2022: weeks 0-17
+[2026-03-08 13:42:00]       2023: weeks 0-17
+[2026-03-08 13:42:00]       2024: weeks 0-17
+[2026-03-08 13:42:00]       2025: weeks 0-17
+[2026-03-08 13:42:00]     ✓ Validation passed
+[2026-03-08 13:42:00]   Merging table: nfl_players_stats
+[2026-03-08 13:42:00]     Rows before merge: 1239127 (450240, 34000, 531284, 223603)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, playerId
+[2026-03-08 13:42:00]     Rows after merge: 44577
+[2026-03-08 13:42:00]     Duplicates removed: 1194550
+[2026-03-08 13:42:00]   Validating nfl_players_stats...
+[2026-03-08 13:42:00]     Seasons: 2019, 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2019: weeks 0-17
+[2026-03-08 13:42:00]       2020: weeks 0-17
+[2026-03-08 13:42:00]       2021: weeks 0-17
+[2026-03-08 13:42:00]       2022: weeks 0-17
+[2026-03-08 13:42:00]       2023: weeks 0-17
+[2026-03-08 13:42:00]       2024: weeks 0-17
+[2026-03-08 13:42:00]       2025: weeks 0-17
+[2026-03-08 13:42:00]     ✓ Validation passed
+[2026-03-08 13:42:00]   Merging table: nfl_players_adv_stats
+[2026-03-08 13:42:00]     Rows before merge: 77322 (0, 15453, 14824, 47045)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, playerId
+[2026-03-08 13:42:00]     Rows after merge: 69513
+[2026-03-08 13:42:00]     Duplicates removed: 7809
+[2026-03-08 13:42:00]   Validating nfl_players_adv_stats...
+[2026-03-08 13:42:00]     Seasons: 2019, 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2019: weeks 0-17
+[2026-03-08 13:42:00]       2020: weeks 0-17
+[2026-03-08 13:42:00]       2021: weeks 0-17
+[2026-03-08 13:42:00]       2022: weeks 0-17
+[2026-03-08 13:42:00]       2023: weeks 0-17
+[2026-03-08 13:42:00]       2024: weeks 0-17
+[2026-03-08 13:42:00]       2025: weeks 0-17
+[2026-03-08 13:42:00]     ✓ Validation passed
+[2026-03-08 13:42:00] Creating dm object for nfl_stats_db.rds...
+[2026-03-08 13:42:00] ✓ Saved dataset/nfl_stats_db.rds
+[2026-03-08 13:42:00]   File size: 0.62 MB
+[2026-03-08 13:42:00] --- Processing nfl_round_db.rds ---
+[2026-03-08 13:42:00] Loading nfl_round_db.rds from year 2020...
+[2026-03-08 13:42:00]   ✓ Loaded 5 tables from 2020
+[2026-03-08 13:42:00] Loading nfl_round_db.rds from year 2021...
+[2026-03-08 13:42:00]   ✓ Loaded 5 tables from 2021
+[2026-03-08 13:42:00] Loading nfl_round_db.rds from year 2022...
+[2026-03-08 13:42:00]   ✓ Loaded 5 tables from 2022
+[2026-03-08 13:42:00] Loading nfl_round_db.rds from year 2023-25...
+[2026-03-08 13:42:00]   ✓ Loaded 5 tables from 2023-25
+[2026-03-08 13:42:00] Tables to merge: nfl_teams_round, nfl_teams_rosters, nfl_teams_week_stats, nfl_teams_season_stats, matchups_games
+[2026-03-08 13:42:00]   Merging table: nfl_teams_round
+[2026-03-08 13:42:00]     Rows before merge: 1416 (218, 232, 232, 734)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, teamId
+[2026-03-08 13:42:00]     Rows after merge: 1416
+[2026-03-08 13:42:00]   Validating nfl_teams_round...
+[2026-03-08 13:42:00]     Seasons: 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2020: weeks 1-16
+[2026-03-08 13:42:00]       2021: weeks 1-17
+[2026-03-08 13:42:00]       2022: weeks 1-17
+[2026-03-08 13:42:00]       2023: weeks 1-17
+[2026-03-08 13:42:00]       2024: weeks 1-17
+[2026-03-08 13:42:00]       2025: weeks 1-17
+[2026-03-08 13:42:00]     ✓ Validation passed
+[2026-03-08 13:42:00]   Merging table: nfl_teams_rosters
+[2026-03-08 13:42:00]     Rows before merge: 33656 (4320, 4801, 4578, 19957)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, playerId, teamId, timestamp
+[2026-03-08 13:42:00]     Rows after merge: 31492
+[2026-03-08 13:42:00]     Duplicates removed: 2164
+[2026-03-08 13:42:00]   Validating nfl_teams_rosters...
+[2026-03-08 13:42:00]     Seasons: 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2020: weeks 1-16
+[2026-03-08 13:42:00]       2021: weeks 1-17
+[2026-03-08 13:42:00]       2022: weeks 1-17
+[2026-03-08 13:42:00]       2023: weeks 1-17
+[2026-03-08 13:42:00]       2024: weeks 1-17
+[2026-03-08 13:42:00]       2025: weeks 1-17
+[2026-03-08 13:42:00]     ⚠ playerId: 66 NAs
+[2026-03-08 13:42:00]   Merging table: nfl_teams_week_stats
+[2026-03-08 13:42:00]     Rows before merge: 1698 (218, 232, 232, 1016)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, teamId, timestamp
+[2026-03-08 13:42:00]     Rows after merge: 1698
+[2026-03-08 13:42:00]   Validating nfl_teams_week_stats...
+[2026-03-08 13:42:00]     Seasons: 2020, 2021, 2022, 2023, 2024, 2025
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2020: weeks 1-16
+[2026-03-08 13:42:00]       2021: weeks 1-17
+[2026-03-08 13:42:00]       2022: weeks 1-17
+[2026-03-08 13:42:00]       2023: weeks 1-17
+[2026-03-08 13:42:00]       2024: weeks 1-17
+[2026-03-08 13:42:00]       2025: weeks 1-17
+[2026-03-08 13:42:00]     ✓ Validation passed
+[2026-03-08 13:42:00]   Merging table: nfl_teams_season_stats
+[2026-03-08 13:42:00]     Rows before merge: 29552 (2858, 3490, 3944, 19260)
+[2026-03-08 13:42:00]     ✗ ERROR merging nfl_teams_season_stats: Can't combine `..1$teamId` <character> and `..4$teamId` <integer>.
+[2026-03-08 13:42:00]   Merging table: matchups_games
+[2026-03-08 13:42:00]     Rows before merge: 724 (113, 120, 120, 371)
+[2026-03-08 13:42:00]     ✗ ERROR merging matchups_games: Can't combine `..1$awayTeamPlayoffSeeding` <integer> and `..3$awayTeamPlayoffSeeding` <character>.
+[2026-03-08 13:42:00] Creating dm object for nfl_round_db.rds...
+[2026-03-08 13:42:00] ✓ Saved dataset/nfl_round_db.rds
+[2026-03-08 13:42:00]   File size: 0.06 MB
+[2026-03-08 13:42:00] --- Processing nfl_recap_db.rds ---
+[2026-03-08 13:42:00] Loading nfl_recap_db.rds from year 2020...
+[2026-03-08 13:42:00]   ✓ Loaded 1 tables from 2020
+[2026-03-08 13:42:00] Loading nfl_recap_db.rds from year 2021...
+[2026-03-08 13:42:00]   ✓ Loaded 1 tables from 2021
+[2026-03-08 13:42:00] Loading nfl_recap_db.rds from year 2022...
+[2026-03-08 13:42:00]   ✓ Loaded 1 tables from 2022
+[2026-03-08 13:42:00] Loading nfl_recap_db.rds from year 2023-25...
+[2026-03-08 13:42:00]   ✓ Loaded 1 tables from 2023-25
+[2026-03-08 13:42:00] Tables to merge: nfl_recap
+[2026-03-08 13:42:00]   Merging table: nfl_recap
+[2026-03-08 13:42:00]     Rows before merge: 311 (0, 0, 0, 311)
+[2026-03-08 13:42:00]     Deduplicated using: season, week, matchupId
+[2026-03-08 13:42:00]     Rows after merge: 311
+[2026-03-08 13:42:00]   Validating nfl_recap...
+[2026-03-08 13:42:00]     Seasons: 2023, 2024, 2025
+[2026-03-08 13:42:00]     ⚠ Missing seasons: 2020, 2021, 2022
+[2026-03-08 13:42:00]     Week coverage by season:
+[2026-03-08 13:42:00]       2023: weeks 1-14
+[2026-03-08 13:42:01]       2024: weeks 1-13
+[2026-03-08 13:42:01]       2025: weeks 1-17
+[2026-03-08 13:42:01] Creating dm object for nfl_recap_db.rds...
+[2026-03-08 13:42:01] ✓ Saved dataset/nfl_recap_db.rds
+[2026-03-08 13:42:01]   File size: 1.3 MB
+[2026-03-08 13:42:01] --- Processing dudes_simulation_db.rds ---
+[2026-03-08 13:42:01] Loading dudes_simulation_db.rds from year 2020...
+[2026-03-08 13:42:03]   ✓ Loaded 2 tables from 2020
+[2026-03-08 13:42:03] Loading dudes_simulation_db.rds from year 2021...
+[2026-03-08 13:42:03]   ✓ Loaded 2 tables from 2021
+[2026-03-08 13:42:03] Loading dudes_simulation_db.rds from year 2022...
+[2026-03-08 13:42:05]   ✓ Loaded 2 tables from 2022
+[2026-03-08 13:42:05] Loading dudes_simulation_db.rds from year 2023-25...
+[2026-03-08 13:42:08]   ✓ Loaded 2 tables from 2023-25
+[2026-03-08 13:42:08] Tables to merge: dudes_players_seeds, dudes_players_simulations
+[2026-03-08 13:42:08]   Merging table: dudes_players_seeds
+[2026-03-08 13:42:08]     Rows before merge: 160648 (24613, 1235, 23973, 110827)
+[2026-03-08 13:42:08]     ✗ ERROR merging dudes_players_seeds: Can't combine `..1$id` <integer> and `..4$id` <character>.
+[2026-03-08 13:42:08]   Merging table: dudes_players_simulations
+[2026-03-08 13:42:08]     Rows before merge: 133134 (24613, 1235, 23973, 83313)
+[2026-03-08 13:42:08]     ✗ ERROR merging dudes_players_simulations: Can't combine `..1$id` <integer> and `..4$id` <character>.
+[2026-03-08 13:42:08] ✗ No tables to save for dudes_simulation_db.rds
+[2026-03-08 13:42:08] 
+=== SAVING VALIDATION RESULTS ===
+[2026-03-08 13:42:09] ✓ Saved validation results to dataset/merge_validation.csv
+[2026-03-08 13:42:09] 
+=== SUMMARY STATISTICS ===
+[2026-03-08 13:42:09] 
+Final database sizes:
+[2026-03-08 13:42:09]   nfl_stats_db.rds: 4 tables, 183,165 rows
+[2026-03-08 13:42:09]   nfl_players_db.rds: 2 tables, 122,361 rows
+[2026-03-08 13:42:09]   nfl_round_db.rds: 3 tables, 34,606 rows
+[2026-03-08 13:42:09]   nfl_recap_db.rds: 1 tables, 311 rows
+[2026-03-08 13:42:09]   ffa_db.rds: 1 tables, 123 rows
+[2026-03-08 13:42:09]   nfl_teams_db.rds: 2 tables, 60 rows
+[2026-03-08 13:42:09] 
+Rows by source year:
+[2026-03-08 13:42:09]   2020: 636,490 rows
+[2026-03-08 13:42:09]   2021: 103,500 rows
+[2026-03-08 13:42:09]   2022: 721,588 rows
+[2026-03-08 13:42:09]   2023-25: 930,183 rows
+[2026-03-08 13:42:09] 
+⚠ VALIDATION WARNINGS:
+[2026-03-08 13:42:09]   nfl_round_db.rds / nfl_teams_rosters: WARNINGS
+[2026-03-08 13:42:09]   nfl_recap_db.rds / nfl_recap: WARNINGS
+[2026-03-08 13:42:09] 
+=== MERGE COMPLETE ===
+[2026-03-08 13:42:09] Total databases merged: 7
+[2026-03-08 13:42:09] All output files saved to dataset/
+[2026-03-08 13:42:09] Check dataset/merge_execution.log for full details
+[2026-03-08 13:42:09] Check dataset/merge_validation.csv for validation data
+[2026-03-08 13:42:09] Completed at: 2026-03-08 13:42:09

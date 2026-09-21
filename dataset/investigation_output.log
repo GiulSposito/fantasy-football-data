@@ -1,0 +1,42 @@
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.6
+✔ forcats   1.0.0     ✔ stringr   1.6.0
+✔ ggplot2   4.0.1     ✔ tibble    3.3.0
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.2.0     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Anexando pacote: ‘dm’
+
+O seguinte objeto é mascarado por ‘package:stats’:
+
+    filter
+
+
+#############################################################
+#           DATASET INVESTIGATION REPORT                   #
+#############################################################
+Error:
+! Failed to evaluate glue component {'='*60}
+Caused by error in `"=" * 60`:
+! argumento não-numérico para operador binário
+Backtrace:
+     ▆
+  1. ├─global investigate_database(db_info$path, db_info$name)
+  2. │ ├─base::cat(glue("\n{'='*60}\n"))
+  3. │ └─glue::glue("\n{'='*60}\n")
+  4. │   └─glue::glue_data(...)
+  5. ├─glue (local) `<fn>`("'='*60")
+  6. │ ├─.transformer(expr, env) %||% .null
+  7. │ └─glue (local) .transformer(expr, env)
+  8. │   ├─glue:::with_glue_error(...)
+  9. │   │ └─base::withCallingHandlers(...)
+ 10. │   └─base::eval(expr, envir)
+ 11. │     └─base::eval(expr, envir)
+ 12. └─base::.handleSimpleError(...)
+ 13.   └─glue (local) h(simpleError(msg, call))
+ 14.     └─rlang::abort(message, parent = cnd, call = NULL)
+Execução interrompida

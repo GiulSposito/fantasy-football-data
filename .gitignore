@@ -1,0 +1,15 @@
+# OS / editor
+.DS_Store
+.Rhistory
+.Rproj.user/
+
+# Local tooling, not part of the public data project
+.claude/
+_bmad/
+_bmad-output/
+
+# Raw / intermediate data — not versioned; only dataset/ (canonical) is tracked
+/dudes/
+/app/
+/etl/
+/archive/app-2023-raw/
