@@ -1,0 +1,17 @@
+{
+  "hash": "13ee2c545362bfece4223bde6e0b7ecb",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Stars, Starters and Replacement Players\"\nsubtitle: \"Empirical Value Over Replacement by position\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n\n:::\n\n\n## Executive summary\n\nThis computes VOR **empirically** from actual season point totals, not from\n`ffa_projtable$points_vor` -- that column is 100% NA for 2020-2023 and only\nappears in 2024-2025, so it can't support a full-history VOR story.\nReplacement rank per position (QB14/RB35/WR40/TE14, K/DST extended to 14)\nis a fixed convention from the source brief, **not** derived from this\nleague's actual starter demand: `nfl_teams_rosters$slotPosition` only has 3\ncoarse buckets (`O`/`DT`/`K`), too coarse to reconstruct real per-position\nstarter counts, so this is a documented simplification, not a league-exact\nnumber.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](09-value-over-replacement_files/figure-commonmark/vor-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](09-value-over-replacement_files/figure-commonmark/top-vor-1.png)\n:::\n:::\n\n\n**Takeaway:** the steepness of the scarcity curve right up to the\nreplacement-rank line is \"positional scarcity\" made visible -- a position\nwhose curve drops fast even at low ranks creates more competitive advantage\nper roster spot than one with a long, flat tail of replaceable production.\n",
+    "supporting": [
+      "09-value-over-replacement_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": null,
+    "postProcess": false
+  }
+}

@@ -1,0 +1,111 @@
+---
+title: "Who Is Actually Predictable?"
+subtitle: "Separating talent, production and risk"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId))
+
+joined <- consensus |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  mutate(surprise = pts - points) |>
+  left_join(dplyr::select(nfl_players_db$nfl_players, playerId, name), by = "playerId")
+
+report_match_rate(
+  nrow(distinct(joined, season, week, playerId)),
+  nrow(distinct(consensus, season, week, playerId)),
+  "predictability bridge match rate"
+)
+
+MIN_GAMES <- 6
+```
+
+## Executive summary
+
+Instead of "who scores the most," we ask "who do we actually know how to
+project?" `predictability = SD(actual - projected)` per player (lower =
+more predictable), computed only for players with at least `r MIN_GAMES`
+matched games. Plotting average points against predictability separates
+four archetypes: reliable stars, boom/bust stars, low-upside-but-steady
+players, and low-upside-and-volatile players.
+
+```{r reliability-map}
+reliability <- joined |>
+  group_by(playerId, name, pos) |>
+  summarise(
+    games = n(),
+    avg_pts = mean(pts),
+    predictability = sd(surprise),
+    .groups = "drop"
+  ) |>
+  filter(games >= MIN_GAMES)
+
+med_pts <- median(reliability$avg_pts)
+med_pred <- median(reliability$predictability)
+
+reliability |>
+  ggplot(aes(predictability, avg_pts, size = games, color = pos)) +
+  geom_vline(xintercept = med_pred, linetype = "dashed", color = "grey60") +
+  geom_hline(yintercept = med_pts, linetype = "dashed", color = "grey60") +
+  geom_point(alpha = 0.5) +
+  scale_color_position() +
+  labs(
+    title = "Fantasy reliability map",
+    subtitle = "Low predictability (left) = more consistent with the projection",
+    x = "Predictability = SD(actual − projected)", y = "Average actual points", size = "Games", color = NULL
+  ) +
+  theme_reports()
+```
+
+```{r quadrant-table}
+reliability |>
+  mutate(
+    quadrant = case_when(
+      avg_pts >= med_pts & predictability < med_pred ~ "Reliable star",
+      avg_pts >= med_pts & predictability >= med_pred ~ "Boom/bust star",
+      avg_pts < med_pts & predictability < med_pred ~ "Consistent floor",
+      TRUE ~ "Volatile low-upside"
+    )
+  ) |>
+  count(quadrant, pos) |>
+  ggplot(aes(pos, n, fill = quadrant)) +
+  geom_col(position = "dodge") +
+  labs(title = "Player archetypes by position", x = NULL, y = "Players", fill = NULL) +
+  theme_reports()
+```
+
+```{r most-least}
+bind_rows(
+  reliability |> filter(avg_pts >= med_pts) |> slice_min(predictability, n = 10) |> mutate(kind = "most predictable star"),
+  reliability |> filter(avg_pts >= med_pts) |> slice_max(predictability, n = 10) |> mutate(kind = "least predictable star")
+) |>
+  mutate(label = paste0(name, " (", pos, ")")) |>
+  ggplot(aes(predictability, fct_reorder(label, predictability), color = kind)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("most predictable star" = "#1b9e77", "least predictable star" = "#d95f02")) +
+  labs(title = "Most and least predictable above-average scorers", x = "Predictability (lower = more consistent)", y = NULL, color = NULL) +
+  theme_reports()
+```
+
+**Takeaway:** the top-left quadrant (reliable stars) is who you draft early
+with confidence; the top-right (boom/bust stars) is who wins or loses your
+week depending on variance, not skill at projecting them.

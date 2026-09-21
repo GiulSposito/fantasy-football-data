@@ -1,0 +1,92 @@
+---
+title: "Did the Model Know?"
+subtitle: "Reliability of the Monte Carlo simulation quantiles"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+sim_db <- readRDS(db_path("dudes_simulation_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+# dudes_players_simulations$simType has 18 distinct values but coverage is
+# fragmented by season -- most are single-season tags (<=125 rows) rather
+# than real simulation methodologies. proj_src and current_season_his are
+# the only two with meaningful, overlapping coverage (both 2023-2024), so
+# this report is scoped to those two and to those seasons -- no 2025 data.
+sims <- sim_db$dudes_players_simulations |>
+  filter(simType %in% c("proj_src", "current_season_his")) |>
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  select(season, week, playerId, pos, simType, simQuantiles) |>
+  mutate(.row = row_number()) |>
+  unnest(simQuantiles) |>
+  pivot_wider(names_from = name, values_from = value) |>
+  select(-.row)
+
+joined <- sims |> inner_join(actual, by = c("playerId", "season", "week"))
+
+report_match_rate(nrow(joined), nrow(sims), "simulation-to-actual match rate")
+```
+
+## Executive summary
+
+For each simulated player-week we have quantiles at 5/15/30/50/70/85/95%. If
+the simulation is well-calibrated, the actual result should fall below the
+50% quantile about half the time, inside `[15%, 85%]` about 70% of the
+time, and inside `[5%, 95%]` about 90% of the time. This report is scoped
+to `simType %in% c("proj_src", "current_season_his")` and seasons
+2023-2024 -- the only simulation methodology with real, overlapping
+coverage in this dataset (see note above).
+
+```{r reliability}
+thresholds <- tribble(
+  ~label, ~nominal,
+  "below q50", 0.50,
+  "inside [q15, q85]", 0.70,
+  "inside [q05, q95]", 0.90
+)
+
+reliability <- joined |>
+  group_by(simType) |>
+  summarise(
+    n = n(),
+    `below q50` = mean(pts <= `50%`),
+    `inside [q15, q85]` = mean(pts >= `15%` & pts <= `85%`),
+    `inside [q05, q95]` = mean(pts >= `5%` & pts <= `95%`),
+    .groups = "drop"
+  ) |>
+  pivot_longer(-c(simType, n), names_to = "label", values_to = "observed") |>
+  left_join(select(thresholds, label, nominal), by = "label")
+
+reliability |>
+  ggplot(aes(nominal, observed, color = simType)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
+  geom_point(size = 4) +
+  geom_text(aes(label = label), vjust = -1, size = 3, show.legend = FALSE) +
+  scale_x_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "Simulation calibration: predicted vs. observed coverage",
+    subtitle = "On the diagonal = well-calibrated",
+    x = "Nominal probability", y = "Observed proportion", color = NULL
+  ) +
+  theme_reports()
+```
+
+```{r table}
+reliability |> mutate(across(where(is.numeric), \(x) round(x, 3)))
+```
+
+**Takeaway:** points above the diagonal mean the simulation is
+under-confident (actual results land inside the interval more often than
+promised) -- safe but not sharp. Points below mean it's over-confident,
+which is the riskier failure mode for anyone making decisions off these
+quantiles.

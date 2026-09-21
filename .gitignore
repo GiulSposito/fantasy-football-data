@@ -13,3 +13,11 @@ _bmad-output/
 /app/
 /etl/
 /archive/app-2023-raw/
+
+# CSV export of dataset/ — regenerable via export_dataset_csv.R (189MB, would ~7x the tracked repo size)
+/dataset/export/
+
+# Quarto's transient build cache (xref index, project-cache) for reports/ —
+# regenerable by `quarto render`. reports/_freeze/ (the pinned computed
+# results) IS versioned on purpose, this is not that.
+/reports/.quarto/

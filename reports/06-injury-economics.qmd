@@ -1,0 +1,142 @@
+---
+title: "The Cost of a Questionable Tag"
+subtitle: "How injury status relates to projected and actual production"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId))
+
+# nfl_player_injury_status has no season/week, only a weekly-snapshot
+# timestamp. assign_week() maps each snapshot to the nearest preceding
+# week boundary using ffa_projtable(final)'s own timestamps as the
+# calendar -- an approximation, not the official NFL schedule.
+calendar <- ffa_db$ffa_projtable |> filter_final() |> mutate(season = as.integer(season), week = as.integer(week))
+
+injury <- nfl_players_db$nfl_player_injury_status |>
+  bind_cols(assign_week(nfl_players_db$nfl_player_injury_status$timestamp, calendar)) |>
+  filter(!is.na(season)) |>
+  mutate(
+    status = case_match(
+      injuryGameStatus,
+      NA ~ "Healthy",
+      "Questionable" ~ "Questionable",
+      "Doubtful" ~ "Doubtful",
+      "Out" ~ "Out",
+      .default = "Other inactive"
+    ),
+    status = factor(status, levels = c("Healthy", "Questionable", "Doubtful", "Out", "Other inactive"))
+  )
+```
+
+## Executive summary
+
+`nfl_player_injury_status` only carries a `playerId` + weekly snapshot
+`timestamp`, no `season`/`week` -- we derive those by nearest-preceding-week
+lookup against `ffa_projtable`'s own timestamp calendar (see `assign_week()`
+in `R/_common.R`); treat week assignment as approximate, not the official
+schedule. `injuryGameStatus` has 12 raw levels; we bucket them into
+Healthy (no note) / Questionable / Doubtful / Out / Other inactive (IR, PUP,
+suspended, etc.). We compare same-week projected vs. actual points by
+bucket, and check whether the projection already discounts questionable
+players before the game is played.
+
+```{r join-week}
+weekly_status <- injury |>
+  distinct(playerId, season, week, status) |>
+  # a player can carry more than one status note in the same week window;
+  # keep the most severe for that week
+  mutate(severity = as.integer(status)) |>
+  group_by(playerId, season, week) |>
+  slice_max(severity, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(-severity)
+
+by_status <- weekly_status |>
+  inner_join(consensus, by = c("playerId", "season", "week")) |>
+  inner_join(actual, by = c("playerId", "season", "week"))
+
+report_match_rate(
+  nrow(distinct(by_status, playerId, season, week)),
+  nrow(distinct(weekly_status, playerId, season, week)),
+  "injury-status to projection/actual match rate"
+)
+```
+
+```{r cost-of-tag}
+summary_by_status <- by_status |>
+  group_by(status) |>
+  summarise(
+    n = n(),
+    mean_projected = mean(points),
+    mean_actual = mean(pts),
+    .groups = "drop"
+  )
+
+summary_by_status |>
+  pivot_longer(c(mean_projected, mean_actual), names_to = "kind", values_to = "value") |>
+  ggplot(aes(value, status, color = kind)) +
+  geom_line(aes(group = status), color = "grey70") +
+  geom_point(size = 3) +
+  scale_color_manual(values = c(mean_projected = "#1b9e77", mean_actual = "#d95f02"),
+                      labels = c(mean_projected = "Projected", mean_actual = "Actual")) +
+  labs(title = "The cost of an injury tag", x = "Mean points", y = NULL, color = NULL) +
+  theme_reports()
+```
+
+## Do projections already discount questionable players?
+
+```{r discount-check}
+healthy_baseline <- summary_by_status$mean_projected[summary_by_status$status == "Healthy"]
+
+summary_by_status |>
+  mutate(pct_of_healthy_projection = mean_projected / healthy_baseline) |>
+  select(status, n, mean_projected, mean_actual, pct_of_healthy_projection) |>
+  mutate(across(where(is.numeric), \(x) round(x, 3)))
+```
+
+```{r next-week}
+next_week_actual <- actual |> mutate(week = week - 1) |> rename(pts_next_week = pts)
+
+by_status |>
+  left_join(next_week_actual, by = c("playerId", "season", "week")) |>
+  filter(!is.na(pts_next_week)) |>
+  group_by(status) |>
+  summarise(mean_next_week = mean(pts_next_week), n = n(), .groups = "drop") |>
+  ggplot(aes(status, mean_next_week, fill = status)) +
+  geom_col() +
+  labs(title = "Next-week production after this week's injury tag", x = NULL, y = "Mean points, following week", fill = NULL) +
+  theme_reports() +
+  theme(legend.position = "none")
+```
+
+**Takeaway:** if `pct_of_healthy_projection` drops well below 1.0 for
+Questionable/Doubtful, the projection pipeline is already pricing in the
+injury note before kickoff. If `mean_actual` still falls far short of even
+that discounted projection, the market isn't discounting enough. Watch for
+a selection-bias trap here, though: "Healthy" absorbs every player who
+simply never got a status note logged, including irrelevant bench/waiver
+players with low baseline points -- so a *higher* mean for Questionable
+than Healthy more likely means "only notable, heavily-used players get
+injury notes at all" than "questionable players outscore healthy ones."
+Comparing status buckets within the same player (their own healthy-week
+average vs. their questionable-week average) would remove this confound;
+this report doesn't do that decomposition.

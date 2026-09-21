@@ -1,0 +1,93 @@
+---
+title: "The Manager Effect"
+subtitle: "Who leaves points on the bench?"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_round_db <- readRDS(db_path("nfl_round_db"))
+nfl_teams_db <- readRDS(db_path("nfl_teams_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+# nfl_teams_rosters keeps multiple timestamps even within tag == "final"
+# (snapshots through the week); latest_snapshot() collapses to the single
+# final lineup before counting starters/bench.
+rosters <- nfl_round_db$nfl_teams_rosters |>
+  filter_final() |>
+  latest_snapshot(c("season", "week", "teamId")) |>
+  mutate(is_starter = rosterSlotId %in% STARTER_SLOTS) |>
+  filter(rosterSlotId %in% c(STARTER_SLOTS, BENCH_SLOTS)) |>
+  inner_join(actual, by = c("playerId", "season", "week"))
+
+report_match_rate(nrow(rosters), nrow(latest_snapshot(filter_final(nfl_round_db$nfl_teams_rosters), c("season","week","teamId"))), "roster-to-actual-points match rate")
+```
+
+## Executive summary
+
+`actual` = sum of points scored by a team's starters
+(`rosterSlotId %in% STARTER_SLOTS`, 7 lineup slots/week).
+`possible` = sum of the top-K point scorers among that team's **entire**
+roster that week (K = number of starter slots), ignoring exact
+position-eligibility (QB/RB/WR/TE/FLEX/K/DST). This is a **documented
+simplification**, not a real lineup optimizer -- `nfl_teams_rosters$slotPosition`
+only has 3 coarse buckets (`O`/`DT`/`K`), too coarse to reconstruct which
+bench player was actually eligible to start at which slot, so `possible`
+is a modest overestimate of what a manager could really have started.
+`efficiency = actual / possible` is still a useful relative ranking across
+managers even though its absolute level isn't exact.
+
+```{r efficiency}
+team_week <- rosters |>
+  group_by(season, week, teamId) |>
+  summarise(
+    n_starters = sum(is_starter),
+    actual = sum(pts[is_starter]),
+    possible = sum(sort(pts, decreasing = TRUE)[seq_len(sum(is_starter))]),
+    .groups = "drop"
+  ) |>
+  filter(n_starters > 0, possible > 0) |>
+  mutate(efficiency = actual / possible)
+
+team_season <- team_week |>
+  group_by(season, teamId) |>
+  summarise(efficiency = mean(efficiency), weeks = n(), .groups = "drop") |>
+  left_join(select(nfl_teams_db$nfl_teams, teamId, name), by = "teamId")
+
+team_season |>
+  mutate(label = paste0(name, " (", season, ")")) |>
+  ggplot(aes(efficiency, fct_reorder(label, efficiency))) +
+  geom_col(fill = "#1b9e77") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey40") +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "Points captured / possible, by team-season", x = "Efficiency", y = NULL) +
+  theme_reports() +
+  theme(axis.text.y = element_text(size = 7))
+```
+
+```{r worst-weeks}
+team_week |>
+  left_join(select(nfl_teams_db$nfl_teams, teamId, name), by = "teamId") |>
+  mutate(left_on_bench = possible - actual) |>
+  slice_max(left_on_bench, n = 15) |>
+  mutate(label = paste0(name, " (", season, " wk", week, ")")) |>
+  ggplot(aes(left_on_bench, fct_reorder(label, left_on_bench))) +
+  geom_col(fill = "#d95f02") +
+  labs(title = "Worst single-week lineup decisions", x = "Points left on the bench (approx.)", y = NULL) +
+  theme_reports() +
+  theme(axis.text.y = element_text(size = 7))
+```
+
+**Takeaway:** treat `efficiency` as a relative ranking, not an exact
+percentage -- the top managers are consistently starting their
+highest-scoring roster spots, while the bottom of the list is where
+lineup-setting discipline (or waiver-wire activity) is actually costing
+wins.

@@ -1,0 +1,100 @@
+---
+title: "A Fantasy Football Periodic Table"
+subtitle: "Clustering players by production, volatility and availability"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+points <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+players <- nfl_players_db$nfl_players |>
+  select(playerId, name, position) |>
+  clean_positions(pos_col = position)
+
+MIN_GAMES <- 6
+
+features <- points |>
+  inner_join(players, by = "playerId") |>
+  group_by(season, playerId, name, pos = position) |>
+  summarise(
+    games = n(),
+    production = mean(pts),
+    volatility = sd(pts),
+    .groups = "drop"
+  ) |>
+  filter(games >= MIN_GAMES, !is.na(volatility)) |>
+  mutate(cv = volatility / pmax(production, 0.1))
+
+report_match_rate(nrow(features), nrow(distinct(points, season, playerId)), "periodic-table eligible player-seasons (>= min games)")
+```
+
+## Executive summary
+
+Per-player-season features: production (mean points), volatility (SD of
+points), CV (volatility / production) and availability (games played),
+restricted to players with at least `r MIN_GAMES` games. `kmeans()` (base R,
+scaled features) groups players into archetypes, which we label after the
+fact from each cluster's centroid -- the labels are descriptive, not
+categories that exist in the source data.
+
+```{r cluster}
+set.seed(42)
+X <- features |> transmute(production, cv, games) |> scale()
+km <- kmeans(X, centers = 5, nstart = 25)
+features$cluster <- factor(km$cluster)
+
+centroids <- features |>
+  group_by(cluster) |>
+  summarise(production = mean(production), cv = mean(cv), games = mean(games), n = n(), .groups = "drop") |>
+  arrange(desc(production))
+
+centroids
+```
+
+```{r label}
+# Labels derived from each cluster's centroid position (high/low production
+# x high/low cv), not a fixed mapping -- read off centroids above.
+labels <- centroids |>
+  mutate(
+    label = case_when(
+      production >= median(features$production) & cv <= median(features$cv) ~ "Reliable star",
+      production >= median(features$production) & cv > median(features$cv) ~ "Boom/bust star",
+      production < median(features$production) & cv <= median(features$cv) ~ "Safe floor",
+      TRUE ~ "Bench lottery"
+    )
+  ) |>
+  select(cluster, label)
+
+features <- features |> left_join(labels, by = "cluster")
+```
+
+```{r scatter}
+features |>
+  ggplot(aes(cv, production, color = label)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Fantasy Football periodic table", x = "Coefficient of variation (volatility / production)", y = "Production (avg points)", color = "Archetype") +
+  theme_reports()
+```
+
+```{r counts}
+features |>
+  count(label, pos) |>
+  ggplot(aes(pos, n, fill = label)) +
+  geom_col(position = "dodge") +
+  labs(title = "Archetype mix by position", x = NULL, y = "Player-seasons", fill = NULL) +
+  theme_reports()
+```
+
+**Takeaway:** "Reliable star" is who you draft to win your league with the
+least stress; "Boom/bust star" wins or loses your week for you; "Bench
+lottery" is where late-round upside picks live.

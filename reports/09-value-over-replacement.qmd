@@ -1,0 +1,88 @@
+---
+title: "Stars, Starters and Replacement Players"
+subtitle: "Empirical Value Over Replacement by position"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+points <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+players <- nfl_players_db$nfl_players |>
+  select(playerId, name, position) |>
+  clean_positions(pos_col = position)
+
+season_totals <- points |>
+  inner_join(players, by = "playerId") |>
+  group_by(season, playerId, name, pos = position) |>
+  summarise(season_pts = sum(pts), .groups = "drop") |>
+  group_by(season, pos) |>
+  mutate(rank = rank(-season_pts, ties.method = "first")) |>
+  ungroup()
+```
+
+## Executive summary
+
+This computes VOR **empirically** from actual season point totals, not from
+`ffa_projtable$points_vor` -- that column is 100% NA for 2020-2023 and only
+appears in 2024-2025, so it can't support a full-history VOR story.
+Replacement rank per position (QB14/RB35/WR40/TE14, K/DST extended to 14)
+is a fixed convention from the source brief, **not** derived from this
+league's actual starter demand: `nfl_teams_rosters$slotPosition` only has 3
+coarse buckets (`O`/`DT`/`K`), too coarse to reconstruct real per-position
+starter counts, so this is a documented simplification, not a league-exact
+number.
+
+```{r vor}
+replacement_pts <- season_totals |>
+  filter(rank == REPLACEMENT_RANK[pos]) |>
+  select(season, pos, replacement_pts = season_pts)
+
+vor <- season_totals |>
+  left_join(replacement_pts, by = c("season", "pos")) |>
+  mutate(vor = season_pts - replacement_pts)
+
+vor |>
+  filter(rank <= 60) |>
+  ggplot(aes(rank, season_pts, color = pos)) +
+  geom_line(aes(group = interaction(season, pos)), alpha = 0.15) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  geom_vline(data = tibble(pos = names(REPLACEMENT_RANK), rank = REPLACEMENT_RANK),
+             aes(xintercept = rank, color = pos), linetype = "dashed", alpha = 0.4) +
+  scale_color_position() +
+  labs(
+    title = "Positional scarcity curve",
+    subtitle = "Dashed line = replacement rank; thin lines = individual seasons, bold = average",
+    x = "Positional rank within season", y = "Season total points", color = NULL
+  ) +
+  theme_reports()
+```
+
+```{r top-vor}
+vor |>
+  filter(season == max(season)) |>
+  group_by(pos) |>
+  slice_max(vor, n = 5) |>
+  ungroup() |>
+  mutate(label = paste0(name, " (", pos, ")")) |>
+  ggplot(aes(vor, fct_reorder(label, vor), fill = pos)) +
+  geom_col() +
+  scale_fill_position() +
+  labs(title = paste("Top VOR by position,", max(vor$season)), x = "VOR (points above replacement)", y = NULL, fill = NULL) +
+  theme_reports() +
+  theme(legend.position = "none")
+```
+
+**Takeaway:** the steepness of the scarcity curve right up to the
+replacement-rank line is "positional scarcity" made visible -- a position
+whose curve drops fast even at low ranks creates more competitive advantage
+per roster spot than one with a long, flat tail of replaceable production.

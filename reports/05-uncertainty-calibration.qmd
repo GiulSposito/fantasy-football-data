@@ -1,0 +1,102 @@
+---
+title: "Does Projection Uncertainty Mean Anything?"
+subtitle: "Checking sd_pts and floor/ceiling against what actually happened"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId))
+
+joined <- consensus |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  filter(!is.na(sd_pts), !is.na(floor), !is.na(ceiling))
+
+report_match_rate(
+  nrow(distinct(joined, season, week, playerId)),
+  nrow(distinct(consensus, season, week, playerId)),
+  "uncertainty-calibration bridge match rate (incl. sd_pts/floor/ceiling non-NA)"
+)
+```
+
+## Executive summary
+
+`ffa_projtable` carries `sd_pts`, `floor` and `ceiling` alongside every
+projection. If those numbers mean anything, "high uncertainty" players
+should actually show larger errors, and `actual` should land inside
+`[floor, ceiling]` a stable, sensible share of the time. `floor`/`ceiling`
+aren't documented anywhere as a fixed nominal interval (e.g. not stated to
+be an 80% or 95% band), so this report reports the *observed* coverage
+rather than testing against an assumed target.
+
+```{r calibration-by-tercile}
+by_tercile <- joined |>
+  mutate(uncertainty = ntile(sd_pts, 3),
+         uncertainty = factor(uncertainty, labels = c("low", "medium", "high"))) |>
+  group_by(uncertainty) |>
+  reframe(error_metrics(pts, points))
+
+by_tercile |>
+  ggplot(aes(uncertainty, mae, fill = uncertainty)) +
+  geom_col() +
+  scale_fill_manual(values = c(low = "#1b9e77", medium = "#66a61e", high = "#d95f02")) +
+  labs(title = "Realized MAE by projected-uncertainty tercile", x = "sd_pts tercile", y = "MAE (points)", fill = NULL) +
+  theme_reports()
+```
+
+## Interval coverage
+
+```{r coverage}
+coverage <- joined |>
+  mutate(inside = pts >= floor & pts <= ceiling)
+
+overall_coverage <- mean(coverage$inside)
+
+coverage_by_pos <- coverage |>
+  group_by(pos) |>
+  summarise(coverage = mean(inside), n = n(), .groups = "drop")
+
+coverage_by_pos |>
+  ggplot(aes(pos, coverage, fill = pos)) +
+  geom_col() +
+  geom_hline(yintercept = overall_coverage, linetype = "dashed", color = "grey40") +
+  scale_fill_position() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Share of actuals landing inside [floor, ceiling]",
+    subtitle = paste0("Dashed line = overall coverage (", scales::percent(overall_coverage, accuracy = 0.1), ")"),
+    x = NULL, y = "Coverage", fill = NULL
+  ) +
+  theme_reports()
+```
+
+```{r coverage-by-tercile}
+joined |>
+  mutate(uncertainty = ntile(sd_pts, 3),
+         uncertainty = factor(uncertainty, labels = c("low", "medium", "high")),
+         inside = pts >= floor & pts <= ceiling) |>
+  group_by(uncertainty) |>
+  summarise(coverage = mean(inside), n = n(), .groups = "drop")
+```
+
+**Takeaway:** if MAE climbs cleanly from the low to the high `sd_pts`
+tercile, the model's self-reported uncertainty is doing real work, not just
+decoration. If coverage is roughly flat across positions and tercile
+groups, `floor`/`ceiling` behaves like a consistent interval rather than one
+that's only calibrated for some positions.

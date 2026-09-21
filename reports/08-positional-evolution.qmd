@@ -1,0 +1,78 @@
+---
+title: "The Shifting Shape of Fantasy Scoring"
+subtitle: "Positional production, 2020-2025"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+points <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+players <- nfl_players_db$nfl_players |>
+  select(playerId, position) |>
+  clean_positions(pos_col = position)
+
+joined <- points |> inner_join(players, by = "playerId")
+
+report_match_rate(nrow(joined), nrow(points), "positional-evolution player-metadata match rate")
+```
+
+## Executive summary
+
+Average fantasy production by position, season and week, 2020-2025 (this
+dataset's coverage -- not back to 2019). We look at whether RBs have lost
+ground to WRs and whether scoring has concentrated in fewer positions or
+spread out.
+
+```{r stacked-share}
+by_season_pos <- joined |>
+  group_by(season, pos = position) |>
+  summarise(total_pts = sum(pts), .groups = "drop")
+
+by_season_pos |>
+  ggplot(aes(season, total_pts, fill = pos)) +
+  geom_area(position = "fill") +
+  scale_fill_position() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Share of total fantasy points by position", x = "Season", y = "Share of total points", fill = NULL) +
+  theme_reports()
+```
+
+```{r avg-trend}
+by_season_pos_avg <- joined |>
+  group_by(season, pos = position) |>
+  summarise(avg_pts = mean(pts), .groups = "drop")
+
+by_season_pos_avg |>
+  ggplot(aes(season, avg_pts, color = pos)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  scale_color_position() +
+  labs(title = "Average points per player-game by position", x = "Season", y = "Average points", color = NULL) +
+  theme_reports()
+```
+
+```{r rb-wr}
+by_season_pos_avg |>
+  filter(pos %in% c("RB", "WR")) |>
+  pivot_wider(names_from = pos, values_from = avg_pts) |>
+  mutate(wr_minus_rb = WR - RB) |>
+  ggplot(aes(season, wr_minus_rb)) +
+  geom_col(fill = "#7570b3") +
+  geom_hline(yintercept = 0, color = "grey40") +
+  labs(title = "WR average points − RB average points, by season", x = "Season", y = "Difference (points)") +
+  theme_reports()
+```
+
+**Takeaway:** a rising WR-minus-RB gap over the seasons is data-level
+confirmation of the "Zero RB" drafting theory; a flat or shrinking gap
+would argue against it for this league's scoring settings.

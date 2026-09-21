@@ -1,0 +1,107 @@
+---
+title: "Booms, Busts and Surprises"
+subtitle: "Who beats the projection, who misses it, and by how much?"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId))
+
+joined <- consensus |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  mutate(surprise = pts - points) |>
+  left_join(dplyr::select(nfl_players_db$nfl_players, playerId, name), by = "playerId")
+
+report_match_rate(
+  nrow(distinct(joined, season, week, playerId)),
+  nrow(distinct(consensus, season, week, playerId)),
+  "booms-busts bridge match rate"
+)
+```
+
+## Executive summary
+
+`surprise = actual points - projected points` (consensus `avg_type ==
+"average"` from `ffa_projtable`). Positive surprise is a boom, negative is a
+bust. We look at the biggest single-game surprises and at which players are
+*consistently* over- or under-projected across many games, not just a lucky
+or unlucky week.
+
+```{r scatter}
+joined |>
+  ggplot(aes(points, pts, color = pos)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
+  geom_point(alpha = 0.25, size = 0.8) +
+  scale_color_position() +
+  labs(
+    title = "Projected vs. actual points",
+    subtitle = "Points above the diagonal = boom, below = bust",
+    x = "Projected points", y = "Actual points", color = NULL
+  ) +
+  theme_reports()
+```
+
+```{r biggest-single}
+top_n_surprises <- 15
+
+booms <- joined |> slice_max(surprise, n = top_n_surprises) |>
+  select(name, pos, season, week, points, pts, surprise)
+busts <- joined |> slice_min(surprise, n = top_n_surprises) |>
+  select(name, pos, season, week, points, pts, surprise)
+
+bind_rows(mutate(booms, kind = "boom"), mutate(busts, kind = "bust")) |>
+  mutate(label = paste0(name, " (", season, " wk", week, ")")) |>
+  ggplot(aes(surprise, fct_reorder(label, surprise), fill = kind)) +
+  geom_col() +
+  scale_fill_manual(values = c(boom = "#1b9e77", bust = "#d95f02")) +
+  labs(title = "Biggest single-game surprises", x = "Actual − projected (points)", y = NULL, fill = NULL) +
+  theme_reports() +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+## Who's consistently mis-projected?
+
+```{r consistent}
+consistent <- joined |>
+  group_by(playerId, name, pos) |>
+  summarise(games = n(), mean_surprise = mean(surprise), .groups = "drop") |>
+  filter(games >= 8)
+
+bind_rows(
+  consistent |> slice_max(mean_surprise, n = 10) |> mutate(kind = "most underestimated"),
+  consistent |> slice_min(mean_surprise, n = 10) |> mutate(kind = "most overestimated")
+) |>
+  mutate(label = paste0(name, " (", pos, ", n=", games, ")")) |>
+  ggplot(aes(mean_surprise, fct_reorder(label, mean_surprise), fill = kind)) +
+  geom_col() +
+  scale_fill_manual(values = c("most underestimated" = "#1b9e77", "most overestimated" = "#d95f02")) +
+  labs(
+    title = "Most consistently over/underestimated players (≥ 8 games)",
+    x = "Mean surprise per game (points)", y = NULL, fill = NULL
+  ) +
+  theme_reports() +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+**Takeaway:** a player who's above the diagonal every week isn't having a
+hot streak — projections are systematically light on them. That's a
+standing edge for anyone drafting or trading on gut feel over the
+projection, at least against this projection source.

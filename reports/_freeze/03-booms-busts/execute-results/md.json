@@ -1,0 +1,17 @@
+{
+  "hash": "8c4691f037a1d31ecde89917c4c8c8ba",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Booms, Busts and Surprises\"\nsubtitle: \"Who beats the projection, who misses it, and by how much?\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n\n```\nbooms-busts bridge match rate: 18162 / 27486 = 66.1%\n```\n\n\n:::\n:::\n\n\n## Executive summary\n\n`surprise = actual points - projected points` (consensus `avg_type ==\n\"average\"` from `ffa_projtable`). Positive surprise is a boom, negative is a\nbust. We look at the biggest single-game surprises and at which players are\n*consistently* over- or under-projected across many games, not just a lucky\nor unlucky week.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](03-booms-busts_files/figure-commonmark/scatter-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](03-booms-busts_files/figure-commonmark/biggest-single-1.png)\n:::\n:::\n\n\n## Who's consistently mis-projected?\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](03-booms-busts_files/figure-commonmark/consistent-1.png)\n:::\n:::\n\n\n**Takeaway:** a player who's above the diagonal every week isn't having a\nhot streak — projections are systematically light on them. That's a\nstanding edge for anyone drafting or trading on gut feel over the\nprojection, at least against this projection source.\n",
+    "supporting": [
+      "03-booms-busts_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": null,
+    "postProcess": false
+  }
+}

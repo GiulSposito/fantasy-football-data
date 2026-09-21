@@ -1,0 +1,17 @@
+{
+  "hash": "61a5b7e6a4dce2f464fbe8bc893c8427",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Does Projection Uncertainty Mean Anything?\"\nsubtitle: \"Checking sd_pts and floor/ceiling against what actually happened\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n\n```\nuncertainty-calibration bridge match rate (incl. sd_pts/floor/ceiling non-NA): 18023 / 27486 = 65.6%\n```\n\n\n:::\n:::\n\n\n## Executive summary\n\n`ffa_projtable` carries `sd_pts`, `floor` and `ceiling` alongside every\nprojection. If those numbers mean anything, \"high uncertainty\" players\nshould actually show larger errors, and `actual` should land inside\n`[floor, ceiling]` a stable, sensible share of the time. `floor`/`ceiling`\naren't documented anywhere as a fixed nominal interval (e.g. not stated to\nbe an 80% or 95% band), so this report reports the *observed* coverage\nrather than testing against an assumed target.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](05-uncertainty-calibration_files/figure-commonmark/calibration-by-tercile-1.png)\n:::\n:::\n\n\n## Interval coverage\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](05-uncertainty-calibration_files/figure-commonmark/coverage-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n\n|uncertainty |  coverage|    n|\n|:-----------|---------:|----:|\n|low         | 0.1566245| 6008|\n|medium      | 0.2103862| 6008|\n|high        | 0.2909938| 6007|\n\n:::\n:::\n\n\n**Takeaway:** if MAE climbs cleanly from the low to the high `sd_pts`\ntercile, the model's self-reported uncertainty is doing real work, not just\ndecoration. If coverage is roughly flat across positions and tercile\ngroups, `floor`/`ceiling` behaves like a consistent interval rather than one\nthat's only calibrated for some positions.\n",
+    "supporting": [
+      "05-uncertainty-calibration_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": null,
+    "postProcess": false
+  }
+}

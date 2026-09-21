@@ -1,0 +1,126 @@
+---
+title: "The Wisdom of the Fantasy Crowd"
+subtitle: "Does averaging mediocre projections beat picking one good source?"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+
+# see 01-source-accuracy.qmd: ~38% of nfl_players_points rows have pts == NA
+# (tracked but did not play) and must be dropped before any error metric.
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+src <- ffa_db$ffa_proj_source_points |>
+  filter_final() |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId))
+
+joined <- src |> inner_join(actual, by = c("playerId", "season", "week"))
+
+report_match_rate(
+  nrow(distinct(joined, season, week, playerId)),
+  nrow(distinct(src, season, week, playerId)),
+  "wisdom-of-crowd bridge match rate"
+)
+
+RELIABLE_MIN_N <- 200
+reliable_sources <- joined |>
+  count(data_src) |>
+  filter(n >= RELIABLE_MIN_N) |>
+  pull(data_src)
+
+overlap <- ffa_db$ffa_proj_source_points |>
+  filter(tag == "final") |>
+  distinct(season, week, id, data_src) |>
+  count(season, week, id, name = "n_sources")
+```
+
+## A data-shape finding first
+
+The natural "wisdom of the crowd" test would average each source's
+*simultaneous* projection for the same player-week and see if the average
+beats any individual source. That test needs several sources to actually
+cover the same player-week at the same time. In this dataset's
+`ffa_proj_source_points` table, at `tag == "final"`, **`r scales::percent(mean(overlap$n_sources > 1))` of
+player-weeks (`r sum(overlap$n_sources > 1)` of `r nrow(overlap)`) have more
+than one source recorded** — essentially every player-week has exactly one
+`data_src` row. The 11 sources were not all scraped in parallel for the same
+game across most of 2020-2025; coverage is fragmented by season instead (see
+[01-source-accuracy](01-source-accuracy.md)'s season table). So a row-level
+ensemble of *this* table isn't buildable at meaningful scale — we pivot to
+the only genuine multi-source consensus the data does contain:
+`ffa_projtable`'s precomputed `avg_type %in% c("average", "robust")`
+columns, built upstream from a wider scrape than what survived into
+`ffa_proj_source_points`.
+
+## Does the ready-made consensus beat a single source?
+
+```{r consensus-vs-source}
+by_source_reliable <- joined |>
+  filter(data_src %in% reliable_sources) |>
+  group_by(method = data_src) |>
+  reframe(error_metrics(pts, points)) |>
+  mutate(kind = "individual source")
+
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type %in% c("average", "robust")) |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId)) |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  group_by(method = avg_type) |>
+  reframe(error_metrics(pts, points)) |>
+  mutate(kind = "ffa_projtable consensus", method = paste("ffa_projtable", method))
+
+all_methods <- bind_rows(by_source_reliable, consensus)
+
+all_methods |>
+  ggplot(aes(mae, fct_reorder(method, mae, .desc = TRUE), color = kind)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("individual source" = "#1b9e77", "ffa_projtable consensus" = "#d95f02")) +
+  labs(title = "Precomputed consensus vs. individual reliable sources", x = "MAE (points)", y = NULL, color = NULL) +
+  theme_reports()
+```
+
+```{r consensus-by-pos}
+consensus_by_pos <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type %in% c("average", "robust")) |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId)) |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  group_by(avg_type, pos) |>
+  reframe(error_metrics(pts, points))
+
+consensus_by_pos |>
+  ggplot(aes(pos, mae, fill = avg_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(average = "#1b9e77", robust = "#d95f02")) +
+  labs(title = "average vs. robust consensus, by position", x = NULL, y = "MAE (points)", fill = NULL) +
+  theme_reports()
+```
+
+```{r table}
+all_methods |> arrange(mae) |> mutate(across(where(is.numeric), \(x) round(x, 2)))
+```
+
+**Takeaway:** check whether either `ffa_projtable` consensus column beats
+the best reliable individual source from
+[01-source-accuracy](01-source-accuracy.md). If it does, that's real
+evidence for "wisdom of crowds" even though we can't reconstruct which raw
+sources fed it row-by-row in this dataset. If not, the apparent benefit of
+"consensus" in fantasy football media may just be inheriting whichever
+source dominates the input scrape (CBS, by volume — see report 01), not
+genuine error reduction from averaging.

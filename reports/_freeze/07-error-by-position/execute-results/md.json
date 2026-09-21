@@ -1,0 +1,17 @@
+{
+  "hash": "76e4ff9464f6cc43119631861bfe727b",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Which Position Is Hardest to Predict?\"\nsubtitle: \"Decomposing projection error by position\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n\n```\nerror-by-position bridge match rate: 18162 / 27486 = 66.1%\n```\n\n\n:::\n:::\n\n\n## Executive summary\n\nUsing the same `ffa_projtable` consensus (`avg_type == \"average\"`) vs.\nactual points as [03-booms-busts](03-booms-busts.md), we break the error\ndown by position to see which one the projection model consistently\nstruggles with most.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](07-error-by-position_files/figure-commonmark/distribution-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](07-error-by-position_files/figure-commonmark/ecdf-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](07-error-by-position_files/figure-commonmark/ranking-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n\n|pos |    n|  mae|  rmse| bias|\n|:---|----:|----:|-----:|----:|\n|QB  | 2148| 6.96| 14.93| 0.07|\n|WR  | 5485| 5.88| 11.80| 0.43|\n|RB  | 4338| 5.45| 10.98| 0.44|\n|DST | 1515| 4.78|  6.97| 0.46|\n|TE  | 3067| 4.50|  8.43| 1.19|\n|K   | 1609| 4.00|  7.70| 0.78|\n\n:::\n:::\n\n\n**Takeaway:** high-usage skill positions with more scoring pathways\n(receiving + rushing, or big-play upside) tend to have both higher average\npoints and higher absolute error -- the ranking above shows whether that\nscales roughly with scoring volume or whether one position is\ndisproportionately hard to call relative to how many points is at stake.\n",
+    "supporting": [
+      "07-error-by-position_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": null,
+    "postProcess": false
+  }
+}

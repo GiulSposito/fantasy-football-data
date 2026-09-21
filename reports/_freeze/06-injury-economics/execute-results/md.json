@@ -1,0 +1,17 @@
+{
+  "hash": "f4372842653d6f2d3229313415b398f5",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"The Cost of a Questionable Tag\"\nsubtitle: \"How injury status relates to projected and actual production\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n\n:::\n\n\n## Executive summary\n\n`nfl_player_injury_status` only carries a `playerId` + weekly snapshot\n`timestamp`, no `season`/`week` -- we derive those by nearest-preceding-week\nlookup against `ffa_projtable`'s own timestamp calendar (see `assign_week()`\nin `R/_common.R`); treat week assignment as approximate, not the official\nschedule. `injuryGameStatus` has 12 raw levels; we bucket them into\nHealthy (no note) / Questionable / Doubtful / Out / Other inactive (IR, PUP,\nsuspended, etc.). We compare same-week projected vs. actual points by\nbucket, and check whether the projection already discounts questionable\nplayers before the game is played.\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n\n```\ninjury-status to projection/actual match rate: 15941 / 69168 = 23.0%\n```\n\n\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](06-injury-economics_files/figure-commonmark/cost-of-tag-1.png)\n:::\n:::\n\n\n## Do projections already discount questionable players?\n\n\n::: {.cell}\n::: {.cell-output-display}\n\n|status         |     n| mean_projected| mean_actual| pct_of_healthy_projection|\n|:--------------|-----:|--------------:|-----------:|-------------------------:|\n|Healthy        | 14429|          8.481|       9.198|                     1.000|\n|Questionable   |   988|         10.155|       9.859|                     1.197|\n|Doubtful       |    32|         11.589|      10.494|                     1.366|\n|Out            |    93|          9.927|       7.466|                     1.170|\n|Other inactive |   399|          8.648|       9.012|                     1.020|\n\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](06-injury-economics_files/figure-commonmark/next-week-1.png)\n:::\n:::\n\n\n**Takeaway:** if `pct_of_healthy_projection` drops well below 1.0 for\nQuestionable/Doubtful, the projection pipeline is already pricing in the\ninjury note before kickoff. If `mean_actual` still falls far short of even\nthat discounted projection, the market isn't discounting enough. Watch for\na selection-bias trap here, though: \"Healthy\" absorbs every player who\nsimply never got a status note logged, including irrelevant bench/waiver\nplayers with low baseline points -- so a *higher* mean for Questionable\nthan Healthy more likely means \"only notable, heavily-used players get\ninjury notes at all\" than \"questionable players outscore healthy ones.\"\nComparing status buckets within the same player (their own healthy-week\naverage vs. their questionable-week average) would remove this confound;\nthis report doesn't do that decomposition.\n",
+    "supporting": [
+      "06-injury-economics_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": null,
+    "postProcess": false
+  }
+}

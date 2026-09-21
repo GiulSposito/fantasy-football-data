@@ -1,0 +1,62 @@
+---
+title: "Career Fingerprints"
+subtitle: "Weekly production heatmaps for the top scorers, 2020-2025"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+
+points <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+players <- nfl_players_db$nfl_players |> select(playerId, name)
+
+joined <- points |> inner_join(players, by = "playerId")
+
+TOP_N <- 10
+
+top_players <- joined |>
+  group_by(playerId, name) |>
+  summarise(career_pts = sum(pts), .groups = "drop") |>
+  slice_max(career_pts, n = TOP_N)
+```
+
+## Executive summary
+
+Weekly fantasy points for the top `r TOP_N` all-time scorers in this
+dataset's coverage (2020-2025, not back to 2019). Color intensity =
+points; gaps = bye weeks, injuries or seasons not played.
+
+```{r heatmap}
+joined |>
+  semi_join(top_players, by = "playerId") |>
+  mutate(name = factor(name, levels = top_players$name)) |>
+  ggplot(aes(week, season, fill = pts)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "magma") +
+  scale_x_continuous(breaks = scales::pretty_breaks()) +
+  facet_wrap(~name, ncol = 2) +
+  labs(title = "Career fingerprint: weekly points by season", x = "Week", y = "Season", fill = "Points") +
+  theme_reports() +
+  theme(panel.grid = element_blank())
+```
+
+```{r ranking}
+top_players |>
+  ggplot(aes(career_pts, fct_reorder(name, career_pts))) +
+  geom_col(fill = "#1b9e77") +
+  labs(title = paste("Top", TOP_N, "all-time scorers (2020-2025)"), x = "Career points", y = NULL) +
+  theme_reports()
+```
+
+**Takeaway:** a consistently bright row is a durable, healthy star; a row
+with a dark gap mid-career marks an injury or decline that's easy to miss
+in a season-average stat line but obvious here.

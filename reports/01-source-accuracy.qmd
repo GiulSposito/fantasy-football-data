@@ -1,0 +1,202 @@
+---
+title: "Who Predicts Fantasy Football Best?"
+subtitle: "Projection accuracy by source, position and season (2020-2025)"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+
+# ~38% of nfl_players_points rows have pts == NA (player tracked that week
+# but did not play -- inactive/bye), not a real result to compare against.
+# Drop them here so every downstream "reliable sample size" count reflects
+# actual comparable observations, not rows that can never produce an error.
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+src <- ffa_db$ffa_proj_source_points |>
+  filter_final() |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions()
+
+joined <- src |>
+  filter(!is.na(playerId)) |>
+  inner_join(actual, by = c("playerId", "season", "week"))
+
+report_match_rate(
+  nrow(distinct(joined, season, week, playerId)),
+  nrow(distinct(filter(src, !is.na(playerId)), season, week, playerId)),
+  "source-accuracy bridge match rate"
+)
+
+# Sources are not scraped every season (e.g. Yahoo only 2020-2021, FanDuel
+# only 2025, RTSports 18 rows total) -- pooling all 11 into one MAE ranking
+# lets thin-sample sources look artificially best/worst. Headline charts
+# below use only sources with enough matched observations to be comparable;
+# the full breakdown (including thin sources) is in the appendix table.
+RELIABLE_MIN_N <- 200
+reliable_sources <- joined |>
+  count(data_src) |>
+  filter(n >= RELIABLE_MIN_N) |>
+  pull(data_src)
+```
+
+## Executive summary
+
+Across `r nrow(distinct(joined, season, week, data_src, playerId))` source-level
+projections matched to real results, we rank the `r length(reliable_sources)`
+ffanalytics sources with enough matched observations (≥`r RELIABLE_MIN_N`)
+to compare fairly by mean absolute error (MAE), check whether the best
+source holds up by position and by season, and see whether the ready-made
+consensus columns in `ffa_projtable` already beat the best individual
+source. The other sources (Yahoo, NumberFire, FleaFlicker, NFL, FanDuel,
+RTSports) only appear in one or two seasons with a handful of matched rows
+each -- shown in the appendix table for reference, excluded from the
+headline ranking because their sample size makes any rank noise, not
+signal.
+
+```{r by-source}
+by_source <- joined |>
+  filter(data_src %in% reliable_sources) |>
+  group_by(data_src) |>
+  reframe(error_metrics(pts, points)) |>
+  arrange(mae)
+
+by_source_all <- joined |>
+  group_by(data_src) |>
+  reframe(error_metrics(pts, points)) |>
+  arrange(mae)
+
+by_source |>
+  ggplot(aes(mae, fct_reorder(data_src, mae, .desc = TRUE))) +
+  geom_segment(aes(xend = 0, yend = data_src), color = "grey70") +
+  geom_point(size = 3, color = "#1b9e77") +
+  labs(
+    title = "Fantasy Projection Power Rankings",
+    x = "Mean Absolute Error (points)", y = NULL
+  ) +
+  theme_reports()
+```
+
+```{r consensus-baseline}
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type %in% c("average", "robust")) |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId)) |>
+  inner_join(actual, by = c("playerId", "season", "week"))
+
+by_consensus <- consensus |>
+  group_by(data_src = avg_type) |>
+  reframe(error_metrics(pts, points)) |>
+  arrange(mae)
+
+bind_rows(
+  mutate(by_source, kind = "individual source (reliable)"),
+  mutate(by_consensus, kind = "ffa_projtable consensus")
+) |>
+  ggplot(aes(mae, fct_reorder(data_src, mae, .desc = TRUE), color = kind)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("individual source (reliable)" = "#1b9e77", "ffa_projtable consensus" = "#d95f02")) +
+  labs(title = "Individual sources vs. ready-made consensus", x = "MAE (points)", y = NULL, color = NULL) +
+  theme_reports()
+```
+
+## Does the best source change by position?
+
+```{r by-source-pos}
+by_source_pos <- joined |>
+  filter(data_src %in% reliable_sources) |>
+  group_by(data_src, pos) |>
+  reframe(error_metrics(pts, points))
+
+by_source_pos |>
+  mutate(data_src = fct_reorder(data_src, mae, .fun = mean)) |>
+  ggplot(aes(pos, data_src, fill = mae)) +
+  geom_tile() +
+  geom_text(aes(label = round(mae, 1)), size = 3, color = "white") +
+  scale_fill_viridis_c(direction = -1) +
+  labs(title = "MAE by source × position", x = NULL, y = NULL, fill = "MAE") +
+  theme_reports()
+```
+
+## Does accuracy change during the season?
+
+```{r by-week}
+joined |>
+  filter(data_src %in% reliable_sources) |>
+  group_by(week, data_src) |>
+  reframe(error_metrics(pts, points)) |>
+  ggplot(aes(week, mae, color = data_src)) +
+  geom_line(alpha = 0.8) +
+  scale_x_continuous(breaks = scales::pretty_breaks()) +
+  labs(title = "Weekly MAE by source (pooled across seasons)", x = "Week", y = "MAE (points)", color = NULL) +
+  theme_reports()
+```
+
+## Is the best source stable across seasons?
+
+```{r by-season-rank}
+joined |>
+  filter(data_src %in% reliable_sources) |>
+  group_by(season, data_src) |>
+  reframe(error_metrics(pts, points)) |>
+  group_by(season) |>
+  mutate(rank = rank(mae)) |>
+  ungroup() |>
+  ggplot(aes(season, rank, color = data_src)) +
+  geom_line() +
+  geom_point() +
+  scale_y_reverse(breaks = 1:11) +
+  labs(title = "Source accuracy rank by season (1 = best)", x = "Season", y = "Rank", color = NULL) +
+  theme_reports()
+```
+
+## Do sources make the same mistakes?
+
+```{r overlap-check}
+overlap <- joined |>
+  filter(data_src %in% reliable_sources) |>
+  distinct(season, week, playerId, data_src) |>
+  count(season, week, playerId, name = "n_sources")
+n_overlap_pw <- sum(overlap$n_sources > 1)
+```
+
+This is where the data says something more interesting than a correlation
+heatmap: among the `r length(reliable_sources)` reliable sources,
+**`r n_overlap_pw` player-weeks** (of `r nrow(overlap)`) have more than one
+of them projecting the same game at the same time. Coverage is fragmented
+by season instead (see the table above) -- CBS dominates most years, ESPN
+mostly 2022+, FantasyPros/FantasySharks/FFToday thinner slices throughout --
+so there's no pair of sources with enough simultaneous coverage to compute a
+meaningful residual correlation. Any claim about sources being
+"independent" or "diverse" would be reading noise into a matrix built on
+zero overlapping observations. See
+[02-wisdom-of-crowd](02-wisdom-of-crowd.md) for what this means for
+ensembling.
+
+## Rankings (all sources, including thin-coverage ones)
+
+```{r table}
+by_source_all |>
+  left_join(count(joined, data_src, name = "n_check"), by = "data_src") |>
+  select(-n_check) |>
+  mutate(reliable = data_src %in% reliable_sources) |>
+  arrange(desc(reliable), mae) |>
+  mutate(across(where(is.numeric), \(x) round(x, 2)))
+```
+
+**Takeaway:** among sources with reliable sample sizes, CBS and ESPN carry
+almost all of the matched observations and sit mid-pack on MAE; FantasyPros
+and FantasySharks are competitive on far fewer projections. The near-zero
+overlap between sources (previous section) means "ensemble of individual
+sources" isn't really testable in this dataset — see
+[02-wisdom-of-crowd](02-wisdom-of-crowd.md) for what *is* testable.

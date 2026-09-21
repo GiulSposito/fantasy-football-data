@@ -1,0 +1,17 @@
+{
+  "hash": "b50a50c049dd36555f86fc87742764e5",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"The Manager Effect\"\nsubtitle: \"Who leaves points on the bench?\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n\n```\nroster-to-actual-points match rate: 9206 / 11232 = 82.0%\n```\n\n\n:::\n:::\n\n\n## Executive summary\n\n`actual` = sum of points scored by a team's starters\n(`rosterSlotId %in% STARTER_SLOTS`, 7 lineup slots/week).\n`possible` = sum of the top-K point scorers among that team's **entire**\nroster that week (K = number of starter slots), ignoring exact\nposition-eligibility (QB/RB/WR/TE/FLEX/K/DST). This is a **documented\nsimplification**, not a real lineup optimizer -- `nfl_teams_rosters$slotPosition`\nonly has 3 coarse buckets (`O`/`DT`/`K`), too coarse to reconstruct which\nbench player was actually eligible to start at which slot, so `possible`\nis a modest overestimate of what a manager could really have started.\n`efficiency = actual / possible` is still a useful relative ranking across\nmanagers even though its absolute level isn't exact.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](11-manager-effect_files/figure-commonmark/efficiency-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](11-manager-effect_files/figure-commonmark/worst-weeks-1.png)\n:::\n:::\n\n\n**Takeaway:** treat `efficiency` as a relative ranking, not an exact\npercentage -- the top managers are consistently starting their\nhighest-scoring roster spots, while the bottom of the list is where\nlineup-setting discipline (or waiver-wire activity) is actually costing\nwins.\n",
+    "supporting": [
+      "11-manager-effect_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": null,
+    "postProcess": false
+  }
+}

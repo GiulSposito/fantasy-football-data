@@ -1,0 +1,89 @@
+---
+title: "Which Position Is Hardest to Predict?"
+subtitle: "Decomposing projection error by position"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+ffa_db <- readRDS(db_path("ffa_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+consensus <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId))
+
+joined <- consensus |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  mutate(error = pts - points)
+
+report_match_rate(
+  nrow(distinct(joined, season, week, playerId)),
+  nrow(distinct(consensus, season, week, playerId)),
+  "error-by-position bridge match rate"
+)
+```
+
+## Executive summary
+
+Using the same `ffa_projtable` consensus (`avg_type == "average"`) vs.
+actual points as [03-booms-busts](03-booms-busts.md), we break the error
+down by position to see which one the projection model consistently
+struggles with most.
+
+```{r distribution}
+joined |>
+  ggplot(aes(error, pos, fill = pos)) +
+  geom_violin(alpha = 0.8) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  scale_fill_position() +
+  labs(title = "Distribution of projection error by position", x = "Actual − projected (points)", y = NULL, fill = NULL) +
+  theme_reports() +
+  theme(legend.position = "none")
+```
+
+```{r ecdf}
+joined |>
+  ggplot(aes(abs(error), color = pos)) +
+  stat_ecdf() +
+  scale_color_position() +
+  labs(title = "ECDF of absolute error by position", x = "|Actual − projected| (points)", y = "Cumulative share", color = NULL) +
+  theme_reports()
+```
+
+```{r ranking}
+by_pos <- joined |>
+  group_by(pos) |>
+  reframe(error_metrics(pts, points)) |>
+  arrange(desc(mae))
+
+by_pos |>
+  ggplot(aes(mae, fct_reorder(pos, mae))) +
+  geom_segment(aes(xend = 0, yend = pos), color = "grey70") +
+  geom_point(aes(color = pos), size = 4) +
+  scale_color_position() +
+  labs(title = "Hardest position to predict (by MAE)", x = "MAE (points)", y = NULL) +
+  theme_reports() +
+  theme(legend.position = "none")
+```
+
+```{r table}
+by_pos |> mutate(across(where(is.numeric), \(x) round(x, 2)))
+```
+
+**Takeaway:** high-usage skill positions with more scoring pathways
+(receiving + rushing, or big-play upside) tend to have both higher average
+points and higher absolute error -- the ranking above shows whether that
+scales roughly with scoring volume or whether one position is
+disproportionately hard to call relative to how many points is at stake.

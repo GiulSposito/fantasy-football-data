@@ -1,0 +1,19 @@
+project:
+  type: default
+  render:
+    - README.qmd
+    - "*.qmd"
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  freeze: auto
+
+format:
+  gfm:
+    fig-width: 8
+    fig-height: 5
+    fig-dpi: 120
+    df-print: kable
+    toc: false
