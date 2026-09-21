@@ -11,8 +11,8 @@ _Generated 2026-09-21. 1803 rds files, 2596.8 MB on disk._
 | `dudes/` | 1562 | 1636.8 MB | DudesFFA (ESPN league). File-per-week, seasons 2019-2025. Raw + derived. |
 | `etl/` | 42 | 422.8 MB | Legacy-year conversions: `dudes/` reshaped into `app/` dm schema, one folder per season 2020-2025. |
 | `app/` | 181 | 355.7 MB | DudesApp (NFL Fantasy API). dm databases per season-set + `temp/` scrape cache. |
-| `archive/` | 9 | 151.9 MB |  |
-| `dataset/` | 9 | 29.5 MB | Unified historical dm dataset 2020-2025 (merge of app/2023-24-25 + etl/*). |
+| `archive/` | 11 | 151.9 MB |  |
+| `dataset/` | 7 | 29.5 MB | Unified historical dm dataset 2020-2025 (merge of app/2023-24-25 + etl/*). |
 
 ## 2. Canonical dm databases (detail)
 

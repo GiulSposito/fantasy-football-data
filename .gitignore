@@ -7,15 +7,21 @@
 .claude/
 _bmad/
 _bmad-output/
+CLAUDE.md
 
 # Raw / intermediate data — not versioned; only dataset/ (canonical) is tracked
 /dudes/
 /app/
 /etl/
-/archive/app-2023-raw/
+
+# Superseded code, one-time migration scripts/reports, and internal
+# architecture docs — kept locally for provenance, not part of the published repo
+/archive/
 
 # CSV export of dataset/ — regenerable via export_dataset_csv.R (189MB, would ~7x the tracked repo size)
-/dataset/export/
+# the zipped copies (32MB) are versioned instead
+/dataset/export/*
+!/dataset/export/*.zip
 
 # Quarto's transient build cache (xref index, project-cache) for reports/ —
 # regenerable by `quarto render`. reports/_freeze/ (the pinned computed

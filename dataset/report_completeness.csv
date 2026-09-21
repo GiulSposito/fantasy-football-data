@@ -1,8 +1,0 @@
-db_type,tables,avg_completeness,min_completeness,max_completeness
-recap,2,100,100,100
-teams,4,100,100,100
-simulation,4,99.9425,99.9425,99.9425
-round,10,94.83,94.83,94.83
-ffa,10,92.191,92.191,92.191
-stats,8,86.055,86.055,86.055
-players,4,72.7625,72.7625,72.7625

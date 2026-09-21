@@ -24,6 +24,14 @@ This directory contains the complete consolidated DudesData fantasy football dat
 
 **Total:** 702,447 records across 21 tables
 
+## CSV Export
+
+`export/` holds a zipped CSV per table (~32MB total, versioned) — one
+`<db>__<table>.zip` per `<db>__<table>.csv`, e.g.
+`export/ffa_db__ffa_projtable.zip`. The raw (unzipped) CSVs are regenerated
+locally via `Rscript export_dataset_csv.R` from the repo root and aren't
+committed.
+
 ## Documentation Files
 
 ### Essential Reading
