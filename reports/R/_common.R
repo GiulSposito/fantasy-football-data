@@ -112,6 +112,55 @@ REPLACEMENT_RANK <- c(QB = 14, RB = 35, WR = 40, TE = 14, K = 14, DST = 14)
 STARTER_SLOTS <- c(1, 2, 3, 4, 5, 7, 8)
 BENCH_SLOTS <- c(20, 21)
 
+# Unlike slotPosition (only 3 coarse buckets: O/DT/K, see REPLACEMENT_RANK
+# above), rosterSlotId resolves cleanly to a specific lineup slot when
+# cross-tabbed against nfl_players$position: 1=QB, 2=RB, 3=WR, 4=TE, 7=K,
+# 8=DST are each >99% pure; 5=FLEX genuinely pools RB/WR. Used by the
+# 15-18 FGW reports to reconstruct which bench player was actually
+# eligible to replace a given starter -- something 11-manager-effect.qmd
+# deliberately doesn't attempt (see its "possible" simplification note).
+SLOT_POSITION <- c(`1` = "QB", `2` = "RB", `3` = "WR", `4` = "TE", `7` = "K", `8` = "DST")
+FLEX_SLOT <- 5
+FLEX_ELIGIBLE <- c("RB", "WR", "TE")
+
+# nfl_teams_week_stats$statId == "pts" (tag == "final") is a team's real,
+# finalized weekly score; matchups_games gives the matching win/loss. Both
+# only exist for 2023-2025 -- 2020-2022 has no finalized team score at all
+# (see 10-schedule-luck.qmd). Used by the 15-18 FGW reports to build an
+# empirical P(Win | TeamScore) curve instead of assuming a distribution.
+team_week_scores <- function(nfl_round_db) {
+  nfl_round_db$nfl_teams_week_stats |>
+    dplyr::filter(tag == "final", statId == "pts") |>
+    dplyr::mutate(season = as.integer(season), week = as.integer(week), team_score = as.numeric(value)) |>
+    dplyr::select(season, week, teamId, team_score)
+}
+
+team_week_outcomes <- function(nfl_round_db) {
+  matchups <- nfl_round_db$matchups_games |>
+    dplyr::filter(awayTeamOutcome != "", homeTeamOutcome != "") |>
+    dplyr::mutate(season = as.integer(season), week = as.integer(week))
+  dplyr::bind_rows(
+    dplyr::transmute(matchups, season, week, teamId = awayTeamTeamId, opponentId = homeTeamTeamId, outcome = awayTeamOutcome),
+    dplyr::transmute(matchups, season, week, teamId = homeTeamTeamId, opponentId = awayTeamTeamId, outcome = homeTeamOutcome)
+  ) |>
+    dplyr::mutate(won = as.integer(outcome == "win"))
+}
+
+# Empirical P(Win | TeamScore): bin real team-weeks into `n_bins` deciles by
+# score, take each bin's win rate, linearly interpolate between bin
+# midpoints (rule = 2 flattens outside the observed score range instead of
+# extrapolating). Returns a function(score) -> predicted win probability.
+# Both the eFGW/xFGW construction (15-fgw-metrics.qmd) and the calibration
+# check (17-fgw-decision-backtest.qmd) call this so they evaluate the same
+# curve instead of silently drifting apart.
+win_prob_model <- function(scores_outcomes, n_bins = 10) {
+  bins <- scores_outcomes |>
+    dplyr::mutate(.bin = dplyr::ntile(team_score, n_bins)) |>
+    dplyr::group_by(.bin) |>
+    dplyr::summarise(mean_score = mean(team_score), win_rate = mean(won), .groups = "drop")
+  stats::approxfun(bins$mean_score, bins$win_rate, rule = 2)
+}
+
 # Prints the join match rate as a sanity check every report should run once
 # right after its core join (~75-85% expected; a value near 0% means the
 # season/week/id coercion broke).

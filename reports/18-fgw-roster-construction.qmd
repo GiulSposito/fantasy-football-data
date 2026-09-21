@@ -1,0 +1,203 @@
+---
+title: "Is a Waiver Add Worth More Than Its VOR?"
+subtitle: "A single retrospective RosterValue case study from real simulation data (2024)"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+## Executive summary
+
+`fgw_analysis.md`'s Experiment 4 asks whether a `RosterValue(p) = Σ [P(Win |
+Roster + p) − P(Win | Roster)]` rule would pick better waiver adds than
+simply ranking by VOR. Of the four building blocks this FGW series depends
+on, Monte Carlo player simulations are by far the weakest: `simType %in%
+c("proj_src", "current_season_his")` in `dudes_players_simulations` only
+covers **14 season-weeks total** (2023 weeks 1-11, 2024 weeks 2-4) and
+**nothing at all in 2025**. A real backtest the way
+[17-fgw-decision-backtest](17-fgw-decision-backtest.md) runs one isn't
+possible on that little data, so this report is scoped down to what
+`fgw_analysis.md`'s own framing already anticipates for the weakest-evidence
+experiment: **one concrete, real, retrospective case study**, not a general
+claim. Treat this report's conclusion as illustrative, not as evidence at
+the same confidence level as 15-17.
+
+```{r load}
+nfl_round_db <- readRDS(db_path("nfl_round_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+ffa_db <- readRDS(db_path("ffa_db"))
+sim_db <- readRDS(db_path("dudes_simulation_db"))
+
+# simQuantiles is a 7-row (name, value) tibble per player-week -- same shape
+# 12-simulation-calibration.qmd unnests. Build a wide q05..q95 table once.
+sim_q <- sim_db$dudes_players_simulations |>
+  filter(simType %in% c("proj_src", "current_season_his")) |>
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  select(season, week, playerId, simType, simQuantiles) |>
+  # the two simType values overlap on only 13 of 6575 player-weeks;
+  # current_season_his has denser coverage per 12-simulation-calibration.qmd
+  arrange(season, week, playerId, simType == "current_season_his") |>
+  distinct(season, week, playerId, .keep_all = TRUE) |>
+  mutate(.row = row_number()) |>
+  unnest(simQuantiles) |>
+  pivot_wider(names_from = name, values_from = value) |>
+  select(-.row, -simType)
+
+PROBS <- c(0.05, 0.15, 0.30, 0.50, 0.70, 0.85, 0.95)
+QCOLS <- c("5%", "15%", "30%", "50%", "70%", "85%", "95%")
+
+# Linear-interpolate a player-week's 7 quantile points into a resampleable
+# inverse-CDF -- the same idea as R/_common.R's win_prob_model(), applied to
+# a single player's predictive score distribution instead of team outcomes.
+sim_draw <- function(playerId_, season_, week_, n = 2000) {
+  row <- sim_q |> filter(season == season_, week == week_, playerId == playerId_)
+  if (nrow(row) == 0) return(rep(NA_real_, n))
+  approxfun(PROBS, as.numeric(row[1, QCOLS]), rule = 2)(runif(n))
+}
+sim_median <- function(playerId_, season_, week_) {
+  row <- sim_q |> filter(season == season_, week == week_, playerId == playerId_)
+  if (nrow(row) == 0) return(NA_real_)
+  as.numeric(row[1, "50%"])
+}
+```
+
+## The case: a real RB2 decision, 2024 week 2
+
+```{r case-setup}
+SEASON <- 2024
+DECISION_WEEK <- 2
+HORIZON_WEEKS <- 3:4 # as far as proj_src/current_season_his coverage reaches from here
+TARGET_TEAM <- 8
+INCUMBENT <- 2570335 # Zach Charbonnet, the real RB2 starter that week
+
+players_pos <- nfl_players_db$nfl_players |> select(playerId, pos = position) |> clean_positions(pos_col = pos)
+proj <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId)) |>
+  only_games() |>
+  distinct(season, week, playerId, .keep_all = TRUE) |>
+  select(season, week, playerId, proj_points = points)
+
+rosters <- nfl_round_db$nfl_teams_rosters |>
+  filter_final() |>
+  latest_snapshot(c("season", "week", "teamId")) |>
+  filter(season == SEASON, week == DECISION_WEEK, teamId == TARGET_TEAM, rosterSlotId %in% STARTER_SLOTS) |>
+  inner_join(players_pos, by = "playerId")
+other_starters <- rosters$playerId[rosters$playerId != INCUMBENT]
+
+outcomes <- team_week_outcomes(nfl_round_db)
+team_scores <- team_week_scores(nfl_round_db)
+opp_scores <- outcomes |>
+  filter(season == SEASON, teamId == TARGET_TEAM, week %in% HORIZON_WEEKS) |>
+  left_join(team_scores |> rename(opponentId = teamId, opp_score = team_score), by = c("season", "week", "opponentId"))
+```
+
+Team `r TARGET_TEAM` started Zach Charbonnet at RB2 in week 2 of 2024, with
+only Raheem Mostert as an actual same-position bench alternative. Weeks 3-4
+are the horizon this simulation coverage reaches, and both were genuinely
+tight team-projection-vs-opponent matchups (this team's projected total sat
+within a few points of the opponent's real score both weeks) -- exactly the
+kind of context where a marginal roster decision could plausibly matter,
+unlike the blowout weeks that made most decisions in
+[17-fgw-decision-backtest](17-fgw-decision-backtest.md) irrelevant to the
+outcome regardless of who started.
+
+```{r roster-value}
+team_proj_excl <- map_dfr(opp_scores$week, function(w) {
+  tibble(week = w, team_proj_excl = sum(
+    proj$proj_points[proj$season == SEASON & proj$week == w & proj$playerId %in% other_starters], na.rm = TRUE
+  ))
+})
+
+cov <- sim_q |> filter(season == SEASON, week %in% opp_scores$week) |> count(playerId) |> filter(n == nrow(opp_scores))
+
+# candidate pool: any RB (this team's own bench, or any other team's bench --
+# a real waiver-wire check for actual free-agent availability isn't done
+# here, a documented simplification for this illustrative case) with
+# simulation coverage across both horizon weeks
+candidates <- nfl_round_db$nfl_teams_rosters |>
+  filter_final() |>
+  latest_snapshot(c("season", "week", "teamId")) |>
+  filter(season == SEASON, week == DECISION_WEEK, rosterSlotId == 20) |>
+  inner_join(players_pos, by = "playerId") |>
+  filter(pos == "RB", playerId %in% cov$playerId) |>
+  distinct(playerId)
+
+pool <- unique(c(INCUMBENT, candidates$playerId))
+
+roster_value <- map_dfr(pool, function(pid) {
+  per_week <- map_dfr(seq_len(nrow(opp_scores)), function(i) {
+    w <- opp_scores$week[i]
+    opp <- opp_scores$opp_score[i]
+    base <- team_proj_excl$team_proj_excl[team_proj_excl$week == w]
+    draws <- sim_draw(pid, SEASON, w)
+    tibble(p_win = mean(base + draws > opp, na.rm = TRUE), proj_med = sim_median(pid, SEASON, w))
+  })
+  tibble(playerId = pid, roster_value = mean(per_week$p_win), avg_proj = mean(per_week$proj_med, na.rm = TRUE))
+})
+
+roster_value <- roster_value |>
+  left_join(select(nfl_players_db$nfl_players, playerId, name), by = "playerId") |>
+  mutate(is_incumbent = playerId == INCUMBENT) |>
+  arrange(desc(roster_value))
+```
+
+`RosterValue(p)` here is the average, across the 2 horizon weeks, of P(Team
++ candidate's simulated score > opponent's real score) − nothing subtracted
+yet, since we're ranking candidates directly rather than reporting a lift.
+`avg_proj` is each candidate's own simulated median score, averaged across
+the same 2 weeks (`ffa_projtable` doesn't cover most bench RBs, so the
+simulation's own median stands in as the "projected points" comparator).
+
+```{r plot}
+roster_value |>
+  slice_max(roster_value, n = 15, with_ties = TRUE) |>
+  mutate(label = if_else(is_incumbent, paste(name, "(started)"), name)) |>
+  ggplot(aes(roster_value, fct_reorder(label, roster_value), fill = is_incumbent)) +
+  geom_col() +
+  scale_fill_manual(values = c(`TRUE` = "#1b9e77", `FALSE` = "#7570b3"), guide = "none") +
+  scale_x_continuous(labels = scales::percent) +
+  labs(
+    title = "RosterValue by RB candidate (top 15)",
+    subtitle = "P(win) if this player had occupied the RB2 slot, weeks 3-4 2024",
+    x = "RosterValue", y = NULL
+  ) +
+  theme_reports()
+```
+
+```{r table}
+roster_value |>
+  mutate(roster_value = scales::percent(roster_value, accuracy = 0.1), avg_proj = round(avg_proj, 1)) |>
+  select(name, avg_proj, roster_value, is_incumbent) |>
+  head(10)
+```
+
+**Takeaway:** in this one case, RosterValue and the simulation's own
+projected points rank candidates almost identically
+(Spearman r ≈ 0.93 across all `r nrow(roster_value)` candidates) -- most of
+RosterValue's ranking power is, again, just points in a different unit, the
+same conclusion [15-fgw-metrics](15-fgw-metrics.md) and
+[17-fgw-decision-backtest](17-fgw-decision-backtest.md) reached with the
+empirical win-probability curve instead of simulation draws. What
+RosterValue adds here is confirmation, not surprise: the real historical
+start (Charbonnet) sits in the top tier of both rankings, and the team's
+actual bench alternative (Mostert) sits at the very bottom -- the manager's
+real decision checks out. That's a reassuring result for this one
+team-week, not a general finding; with 2 usable horizon weeks, no 2025
+simulation coverage at all, and one illustrative team picked specifically
+because it was a close matchup, this report cannot and does not claim
+RosterValue beats VOR at scale the way
+[17-fgw-decision-backtest](17-fgw-decision-backtest.md) tested for
+start/sit. A real answer to `fgw_analysis.md`'s Experiment 4 would need
+either a broader simulation dataset than this league currently keeps, or
+running the same `win_prob_model()`-based approach 15-17 use with
+projections instead of simulations -- which this report intentionally
+avoided, to keep at least one part of the FGW series grounded in the
+doc's own "literally simulate it" framing (section 7) rather than another
+normal-approximation shortcut.

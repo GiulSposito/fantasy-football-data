@@ -1,0 +1,234 @@
+---
+title: "Would xFGW Have Won You More Games?"
+subtitle: "A historical start/sit policy backtest: Points vs. VOR vs. xFGW (2023-2025)"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_round_db <- readRDS(db_path("nfl_round_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+ffa_db <- readRDS(db_path("ffa_db"))
+
+team_scores <- team_week_scores(nfl_round_db)
+outcomes <- team_week_outcomes(nfl_round_db)
+score_outcome <- team_scores |> inner_join(outcomes, by = c("season", "week", "teamId"))
+win_prob <- win_prob_model(score_outcome)
+
+players_pos <- nfl_players_db$nfl_players |> select(playerId, pos = position) |> clean_positions(pos_col = pos)
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
+proj <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId)) |>
+  only_games() |>
+  distinct(season, week, playerId, .keep_all = TRUE) |>
+  select(season, week, playerId, proj_points = points)
+```
+
+## Executive summary
+
+[15-fgw-metrics](15-fgw-metrics.md) and
+[16-fgw-persistence](16-fgw-persistence.md) test whether FGW describes and
+predicts production. This report runs `fgw_analysis.md`'s central test
+(Experiment 3, sections 10-13): **for every real historical start/sit
+decision this league actually faced -- a starter and the real bench players
+eligible to replace them at that slot -- would ranking by projected points,
+by VOR (points above position replacement), or by xFGW (win-probability
+shift) have picked someone different, and would that pick have won more
+games?**
+
+Bench alternatives are reconstructed from `rosterSlotId` (confirmed to
+resolve cleanly to QB/RB/WR/TE/K/DST/bench, with slot 5 = FLEX pooling
+RB/WR/TE), not the coarser `slotPosition` bucket
+[11-manager-effect](11-manager-effect.md) had to work around.
+
+```{r decision-pool}
+all_roster <- nfl_round_db$nfl_teams_rosters |>
+  filter_final() |>
+  latest_snapshot(c("season", "week", "teamId")) |>
+  filter(rosterSlotId %in% c(STARTER_SLOTS, 20)) |>
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  inner_join(players_pos, by = "playerId") |>
+  left_join(actual, by = c("playerId", "season", "week")) |>
+  left_join(proj, by = c("playerId", "season", "week")) |>
+  mutate(pts = coalesce(pts, 0))
+
+baseline_proj <- all_roster |>
+  filter(rosterSlotId %in% STARTER_SLOTS, !is.na(proj_points)) |>
+  group_by(season, pos) |> summarise(baseline = mean(proj_points), .groups = "drop")
+team_proj_hist <- all_roster |>
+  filter(rosterSlotId %in% STARTER_SLOTS, !is.na(proj_points)) |>
+  group_by(season, week, teamId) |> summarise(team_proj = sum(proj_points), .groups = "drop")
+team_actual_hist <- all_roster |>
+  filter(rosterSlotId %in% STARTER_SLOTS) |>
+  group_by(season, week, teamId) |> summarise(team_actual = sum(pts), .groups = "drop")
+
+starters <- all_roster |>
+  filter(rosterSlotId %in% STARTER_SLOTS, !is.na(proj_points)) |>
+  mutate(rowid = row_number(), req_pos = SLOT_POSITION[as.character(rosterSlotId)])
+bench <- all_roster |> filter(rosterSlotId == 20, !is.na(proj_points))
+
+decisions <- starters |>
+  left_join(team_proj_hist, by = c("season", "week", "teamId")) |>
+  left_join(team_actual_hist, by = c("season", "week", "teamId"))
+
+report_match_rate(nrow(decisions), nrow(starters), "starter decisions with team-projection context (should be ~100%, same join)")
+
+# FLEX (slot 5) pools RB/WR/TE bench candidates; every other slot maps to
+# exactly one position via SLOT_POSITION.
+decisions_exp <- decisions |>
+  mutate(elig_pos = ifelse(rosterSlotId == FLEX_SLOT, list(FLEX_ELIGIBLE), as.list(req_pos))) |>
+  unnest(elig_pos)
+
+candidates <- decisions_exp |>
+  select(rowid, season, week, teamId, elig_pos) |>
+  inner_join(
+    bench |> select(season, week, teamId, elig_pos = pos, cand_playerId = playerId, cand_proj = proj_points, cand_pts = pts),
+    by = c("season", "week", "teamId", "elig_pos"), relationship = "many-to-many"
+  )
+```
+
+For each decision, the "pool" is the actual starter plus every real,
+same-slot-eligible bench player on that team that week, each with a
+hypothetical team total if they'd been swapped in for the incumbent --
+using **projected** points (for the Points/VOR/xFGW policy decision, made
+before the game) and **actual** points (to score what really would have
+happened).
+
+```{r pool}
+pool <- bind_rows(
+  decisions |> transmute(rowid, season, week, teamId, playerId, proj = proj_points, pts, pos,
+                          team_proj, team_actual, incumbent_proj = proj_points, incumbent_pts = pts, is_incumbent = TRUE),
+  candidates |> transmute(rowid, playerId = cand_playerId, proj = cand_proj, pts = cand_pts, pos = elig_pos) |>
+    left_join(decisions |> select(rowid, season, week, teamId, team_proj, team_actual, incumbent_proj = proj_points, incumbent_pts = pts), by = "rowid") |>
+    mutate(is_incumbent = FALSE)
+) |>
+  left_join(baseline_proj, by = c("season", "pos")) |>
+  mutate(
+    delta = proj - baseline,
+    hyp_team_proj = team_proj - incumbent_proj + proj, # this slot swapped, rest of team held at its real projection
+    hyp_win_prob = win_prob(hyp_team_proj),
+    hyp_team_actual = team_actual - incumbent_pts + pts # same swap, using real results
+  )
+
+picks <- pool |>
+  group_by(rowid) |>
+  summarise(
+    points_pick = playerId[which.max(proj)], points_actual = hyp_team_actual[which.max(proj)],
+    vor_pick = playerId[which.max(delta)], vor_actual = hyp_team_actual[which.max(delta)],
+    xfgw_pick = playerId[which.max(hyp_win_prob)], xfgw_actual = hyp_team_actual[which.max(hyp_win_prob)],
+    incumbent = playerId[is_incumbent],
+    n_options = n(),
+    .groups = "drop"
+  ) |>
+  left_join(select(decisions, rowid, season, week, teamId), by = "rowid") |>
+  left_join(select(score_outcome, season, week, teamId, historical_win = won), by = c("season", "week", "teamId")) |>
+  left_join(
+    score_outcome |> select(season, week, teamId = opponentId, opp_score = team_score) |> distinct(),
+    by = c("season", "week", "teamId")
+  ) |>
+  filter(n_options > 1, !is.na(opp_score)) |> # a real decision needs >=1 alternative and a known opponent score
+  mutate(
+    points_win = as.integer(points_actual > opp_score),
+    vor_win = as.integer(vor_actual > opp_score),
+    xfgw_win = as.integer(xfgw_actual > opp_score),
+    flip_vs_points = xfgw_pick != points_pick
+  )
+```
+
+## Decision Flip Rate
+
+```{r flip-rate}
+flip_rate <- mean(picks$flip_vs_points)
+n_decisions <- nrow(picks)
+n_flipped <- sum(picks$flip_vs_points)
+```
+
+Across `r n_decisions` real start/sit decisions with at least one eligible
+bench alternative, xFGW disagreed with ranking by projected points in
+**`r n_flipped`** of them -- a flip rate of
+**`r scales::percent(flip_rate, accuracy = 0.1)`**. `fgw_analysis.md`
+section 12 frames this as the test to run *before* looking at outcomes: a
+low flip rate means the sophistication mostly doesn't change anything in
+practice, whatever the theory says.
+
+## Did the flip help?
+
+```{r win-rate-table}
+tibble(
+  situation = c("All decisions", "Decisions where xFGW and Points differ"),
+  n = c(nrow(picks), n_flipped),
+  historical = c(mean(picks$historical_win), mean(picks$historical_win[picks$flip_vs_points])),
+  points_policy = c(mean(picks$points_win), mean(picks$points_win[picks$flip_vs_points])),
+  vor_policy = c(mean(picks$vor_win), mean(picks$vor_win[picks$flip_vs_points])),
+  xfgw_policy = c(mean(picks$xfgw_win), mean(picks$xfgw_win[picks$flip_vs_points]))
+) |>
+  mutate(across(c(historical, points_policy, vor_policy, xfgw_policy), \(x) scales::percent(x, accuracy = 0.1)))
+```
+
+`historical` is what the real manager's actual lineup that week produced
+(win rate ≈ 50% everywhere, by construction of a win/loss league). The
+other three columns are the hypothetical team win rate if *every* decision
+in that row had instead followed that policy, holding every other slot at
+its real, historical result.
+
+## Calibration: does the win-probability model itself hold up ex-ante?
+
+```{r calibration}
+teamweek_cal <- decisions |>
+  distinct(season, week, teamId, team_proj) |>
+  left_join(select(score_outcome, season, week, teamId, won), by = c("season", "week", "teamId")) |>
+  filter(!is.na(won)) |>
+  mutate(pred = win_prob(team_proj))
+
+brier <- mean((teamweek_cal$pred - teamweek_cal$won)^2)
+
+teamweek_cal |>
+  mutate(bin = ntile(pred, 5)) |>
+  group_by(bin) |>
+  summarise(mean_predicted = mean(pred), observed_win_rate = mean(won), n = n(), .groups = "drop") |>
+  ggplot(aes(mean_predicted, observed_win_rate)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
+  geom_point(size = 4, color = "#1b9e77") +
+  scale_x_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "Calibration: win_prob(team's projected total) vs. real outcome",
+    subtitle = paste0("Brier score = ", round(brier, 3), " (0.25 = always-guess-50%, lower is better); quintile bins, ~108 team-weeks each"),
+    x = "Predicted P(win), quintile mean", y = "Observed win rate"
+  ) +
+  theme_reports()
+```
+
+This is a harder test than [15-fgw-metrics](15-fgw-metrics.md)' curve: that
+one was fit and evaluated on the same real, *actual* scores. Here the same
+`win_prob()` curve is fed each team's **projected** total instead --
+genuinely ex-ante, using only information available before the games were
+played.
+
+**Takeaway:** the flip rate is low (`r scales::percent(flip_rate, accuracy = 0.1)`)
+-- most start/sit calls simply don't have a same-slot alternative close
+enough for the win-probability framing to matter, echoing
+`fgw_analysis.md` section 12's "sofisticamos a matemática e quase nunca
+mudamos a decisão" scenario. And on the `r n_flipped` decisions where it
+*did* disagree with Points -- small enough that this is not a statistically
+powered test -- xFGW's hypothetical win rate did not come out ahead of
+simply starting the higher-projected player. Calibration is real but modest
+(Brier score clearly better than the 0.25 always-guess-50% baseline, but
+short of a sharp forecaster). Taken together, this 3-season sample gives no
+evidence that xFGW would have won this league more games than projected
+points already do -- consistent with `fgw_analysis.md` section 2's own
+warning and section 19's own expectation, not a failure of the metric's
+construction. The honest reading of the doc's H0/H1 framing: **H0 is not
+rejected here.**

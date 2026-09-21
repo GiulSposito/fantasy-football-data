@@ -1,0 +1,235 @@
+---
+title: "Fantasy Game Wins: Does Win-Probability Beat Points?"
+subtitle: "Building FGW, eFGW and xFGW, and checking whether they describe real season outcomes better than points (2023-2025)"
+---
+
+```{r setup}
+source("R/_common.R")
+library(tidyverse)
+library(dm)
+```
+
+```{r load}
+nfl_round_db <- readRDS(db_path("nfl_round_db"))
+nfl_teams_db <- readRDS(db_path("nfl_teams_db"))
+nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
+nfl_players_db <- readRDS(db_path("nfl_players_db"))
+ffa_db <- readRDS(db_path("ffa_db"))
+
+# nfl_teams_week_stats only has a finalized team score for 2023-2025 (see
+# 10-schedule-luck.qmd) -- every report in this FGW series is scoped to
+# those 3 seasons for that reason, so eFGW/xFGW always use real, empirical
+# team-score data rather than mixing in a synthetic model for 2020-2022.
+team_scores <- team_week_scores(nfl_round_db)
+outcomes <- team_week_outcomes(nfl_round_db)
+score_outcome <- team_scores |> inner_join(outcomes, by = c("season", "week", "teamId"))
+
+report_match_rate(nrow(score_outcome), nrow(team_scores), "team-week score-to-outcome match rate")
+
+win_prob <- win_prob_model(score_outcome)
+team_sd <- sd(score_outcome$team_score)
+```
+
+## Executive summary
+
+[Byron Cobalt's FGW](https://byron-cobalt.com/2021/09/19/introducing-the-fantasy-game-wins-fgw-fantasy-football-player-scoring-system/)
+reframes player value as *how much a score shifted your team's win
+probability*, not the raw point total. We build three versions against this
+league's real 2023-2025 data (`fgw_analysis.md` at the repo root is the
+source brief this series works from):
+
+- **FGW-classic** -- reproduces the original method: a normal approximation
+  of the league's team-score spread converts a player's points above their
+  position's replacement-level starter into a win-probability shift.
+- **eFGW** -- same idea, but `P(Win | TeamScore)` comes from this league's
+  own empirical score/outcome history instead of an assumed normal curve.
+- **xFGW** -- the *ex-ante* version: uses projected points (not actual) to
+  ask what a player was *expected* to shift, the form a decision tool would
+  actually need.
+
+Section 2 of `fgw_analysis.md` raises the sharpest test first: since a
+monotonic transform of points can never change a start/sit ranking, FGW only
+earns its keep if it captures something points don't -- here, that a
+player's marginal value depends on their team's score level, not just their
+own delta.
+
+```{r win-prob-curve}
+bins <- score_outcome |>
+  mutate(.bin = ntile(team_score, 10)) |>
+  group_by(.bin) |>
+  summarise(mean_score = mean(team_score), win_rate = mean(won), n = n(), .groups = "drop")
+
+bins |>
+  ggplot(aes(mean_score, win_rate)) +
+  geom_line(color = "grey60") +
+  geom_point(size = 3, color = "#1b9e77") +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "Empirical P(Win | Team Score)",
+    subtitle = "Decile bins, 2023-2025 team-weeks -- this is win_prob_model() from R/_common.R",
+    x = "Team score (weekly)", y = "Observed win rate"
+  ) +
+  theme_reports()
+```
+
+The curve is steep and monotonic through the middle of the score range and
+flattens at the extremes (blowouts and near-shutouts rarely flip on a few
+more points) -- exactly the S-shape the normal-approximation `Impact` term
+in FGW-classic assumes, but built from this league's own outcomes rather
+than a generic distribution.
+
+```{r starters}
+players_pos <- nfl_players_db$nfl_players |> select(playerId, pos = position) |> clean_positions(pos_col = pos)
+
+rosters <- nfl_round_db$nfl_teams_rosters |>
+  filter_final() |>
+  latest_snapshot(c("season", "week", "teamId")) |>
+  filter(rosterSlotId %in% STARTER_SLOTS) |>
+  mutate(season = as.integer(season), week = as.integer(week))
+
+actual <- nfl_stats_db$nfl_players_points |>
+  filter(!is.na(pts)) |>
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
+
+starters <- rosters |>
+  inner_join(actual, by = c("playerId", "season", "week")) |>
+  inner_join(players_pos, by = "playerId")
+
+report_match_rate(nrow(starters), nrow(rosters), "starter-to-actual-points match rate")
+
+# Replacement-level baseline: mean points among actual starters at that
+# position that season (a simpler standard than 09-value-over-replacement's
+# rank cutoff, chosen here because FGW's Impact term needs one number per
+# position-season, not a positional scarcity curve).
+baseline_pos <- starters |> group_by(season, pos) |> summarise(baseline = mean(pts), .groups = "drop")
+```
+
+## FGW-classic and eFGW (retrospective, from actual points)
+
+```{r fgw-metrics}
+fgw <- starters |>
+  left_join(baseline_pos, by = c("season", "pos")) |>
+  left_join(team_scores, by = c("season", "week", "teamId")) |>
+  mutate(
+    delta = pts - baseline,
+    # Reliability = 1: restricted to weeks the player actually started, so
+    # there's no missed-start dilution to model (see fgw_analysis.md #4).
+    fgw_classic = pnorm(delta / team_sd) - 0.5,
+    efgw = win_prob(team_score) - win_prob(team_score - delta)
+  )
+```
+
+`delta` is points above the replacement-level starter at that position and
+season. **FGW-classic** runs it through a normal CDF using the league's
+overall team-score SD (`r round(team_sd, 1)` points). **eFGW** instead asks
+the empirical curve above: "how much did this player's real score move my
+team from its actual total to what a replacement-level starter would have
+produced instead?" Both correlate strongly with each other
+(r = `r round(cor(fgw$fgw_classic, fgw$efgw), 2)`) but are not the same
+metric -- eFGW's win-probability curve flattens in blowouts, so it doesn't
+reward garbage-time padding the way a symmetric normal CDF does.
+
+## xFGW (ex-ante, from projected points)
+
+```{r xfgw}
+proj <- ffa_db$ffa_projtable |>
+  filter_final() |>
+  filter(avg_type == "average") |>
+  bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
+  clean_positions() |>
+  filter(!is.na(playerId)) |>
+  only_games() |>
+  distinct(season, week, playerId, .keep_all = TRUE) |>
+  select(season, week, playerId, points)
+
+starters_proj <- rosters |>
+  select(season, week, teamId, playerId) |>
+  inner_join(proj, by = c("season", "week", "playerId")) |>
+  inner_join(players_pos, by = "playerId")
+
+report_match_rate(nrow(starters_proj), nrow(rosters), "starter-to-projection match rate")
+
+baseline_proj <- starters_proj |> group_by(season, pos) |> summarise(baseline = mean(points), .groups = "drop")
+team_week_proj <- starters_proj |> group_by(season, week, teamId) |> summarise(team_proj = sum(points), .groups = "drop")
+
+xfgw <- starters_proj |>
+  left_join(baseline_proj, by = c("season", "pos")) |>
+  left_join(team_week_proj, by = c("season", "week", "teamId")) |>
+  mutate(delta = points - baseline, xfgw = win_prob(team_proj) - win_prob(team_proj - delta))
+```
+
+**xFGW** repeats eFGW's construction but with each player's *projected*
+points and the team's *projected* total (teammates held at their actual
+performance, this player's slot swapped between their projection and
+replacement level) -- the version a manager could actually compute before
+kickoff. Within the same team-week, xFGW is **not** a monotonic rescaling
+of projected points (r = `r round(cor(xfgw$xfgw, xfgw$points), 2)`, not 1):
+the same point delta shifts win probability more or less depending on how
+close the team's projected total already sits to the empirical curve's
+steep middle section -- the exact effect `fgw_analysis.md` section 2
+predicted would be needed for FGW to ever say something points can't.
+
+## Do these metrics describe real season outcomes better than points?
+
+```{r team-attribution}
+team_wins <- outcomes |> group_by(season, teamId) |> summarise(wins = sum(won), .groups = "drop")
+
+made_playoffs <- nfl_round_db$matchups_games |>
+  filter(bracketType == "championship") |>
+  mutate(season = as.integer(season)) |>
+  select(season, awayTeamTeamId, homeTeamTeamId) |>
+  pivot_longer(-season, values_to = "teamId") |>
+  distinct(season, teamId) |>
+  mutate(made_playoffs = TRUE)
+
+team_agg <- fgw |>
+  group_by(season, teamId) |>
+  summarise(
+    team_pts = sum(pts), team_delta = sum(delta), team_fgw = sum(fgw_classic), team_efgw = sum(efgw),
+    .groups = "drop"
+  ) |>
+  left_join(team_wins, by = c("season", "teamId")) |>
+  left_join(made_playoffs, by = c("season", "teamId")) |>
+  mutate(made_playoffs = coalesce(made_playoffs, FALSE))
+
+tibble(
+  metric = c("Points", "Points above replacement (delta)", "FGW-classic", "eFGW"),
+  corr_with_wins = c(
+    cor(team_agg$team_pts, team_agg$wins),
+    cor(team_agg$team_delta, team_agg$wins),
+    cor(team_agg$team_fgw, team_agg$wins),
+    cor(team_agg$team_efgw, team_agg$wins)
+  )
+) |>
+  mutate(corr_with_wins = round(corr_with_wins, 3)) |>
+  arrange(desc(corr_with_wins))
+```
+
+```{r playoffs}
+team_agg |>
+  pivot_longer(c(team_pts, team_delta, team_fgw, team_efgw), names_to = "metric", values_to = "value") |>
+  mutate(metric = factor(metric, levels = c("team_pts", "team_delta", "team_fgw", "team_efgw"),
+                          labels = c("Points", "Delta (VOR-style)", "FGW-classic", "eFGW"))) |>
+  ggplot(aes(made_playoffs, value, fill = made_playoffs)) +
+  geom_boxplot() +
+  facet_wrap(~metric, scales = "free_y") +
+  scale_fill_manual(values = c(`TRUE` = "#1b9e77", `FALSE` = "#d95f02"), guide = "none") +
+  labs(title = "Team-season metric totals, playoff vs. non-playoff teams", x = "Made championship bracket", y = NULL) +
+  theme_reports()
+```
+
+**Takeaway:** raw season points already correlate strongly with real wins
+(r = `r round(cor(team_agg$team_pts, team_agg$wins), 2)`) -- there isn't
+much room for any transformation of the same underlying production to add.
+FGW-classic tracks points closely, as expected from a monotonic transform
+of (mostly) the same signal. eFGW's flattening at the extremes pulls its
+win correlation *below* points' -- it's deliberately discounting blowout
+production that padded a score without changing the outcome, which is a
+different (and arguably more honest) notion of "value" than "did this team
+score a lot," not a data problem. This matches `fgw_analysis.md` section
+19's own expectation: FGW is a genuinely different lens on *what happened*,
+but that's a retrospective/descriptive claim, not yet a decision claim --
+[16-fgw-persistence](16-fgw-persistence.md) and
+[17-fgw-decision-backtest](17-fgw-decision-backtest.md) test whether either
+version actually helps you decide something.
