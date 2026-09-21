@@ -2,16 +2,16 @@
 
 Inventory of every `.rds` in the DudesData repo: what each database holds, the season/week range it covers, and headline counts. Regenerate with `Rscript catalog_rds.R`.
 
-_Generated 2026-09-08. 1807 rds files, 2846.1 MB on disk._
+_Generated 2026-09-21. 1803 rds files, 2596.8 MB on disk._
 
 ## 1. Top-level layout
 
 | Dir | Files | Size | What it is |
 |---|---|---|---|
 | `dudes/` | 1562 | 1636.8 MB | DudesFFA (ESPN league). File-per-week, seasons 2019-2025. Raw + derived. |
-| `app/` | 190 | 507.7 MB | DudesApp (NFL Fantasy API). dm databases per season-set + `temp/` scrape cache. |
-| `etl/` | 42 | 399.7 MB | Legacy-year conversions: `dudes/` reshaped into `app/` dm schema, one folder per season 2020-2025. |
-| `.claude/` | 4 | 272.4 MB | ETL checkpoint rds (pipeline resume state). |
+| `etl/` | 42 | 422.8 MB | Legacy-year conversions: `dudes/` reshaped into `app/` dm schema, one folder per season 2020-2025. |
+| `app/` | 181 | 355.7 MB | DudesApp (NFL Fantasy API). dm databases per season-set + `temp/` scrape cache. |
+| `archive/` | 9 | 151.9 MB |  |
 | `dataset/` | 9 | 29.5 MB | Unified historical dm dataset 2020-2025 (merge of app/2023-24-25 + etl/*). |
 
 ## 2. Canonical dm databases (detail)
@@ -90,13 +90,6 @@ Same 7-database schema. Rows = summed across tables in the file.
 
 | Folder | DB file | Tables | Rows | Season | Week |
 |---|---|---|---|---|---|
-| `app/2023/` | dudes_simulation_db.rds | 2 | 156,532 | 2023 | 1-11 |
-| `app/2023/` | ffa_db.rds | 5 | 151,253 | 2023 | 1-17 |
-| `app/2023/` | nfl_players_db.rds | 2 | 26,187 | - | - |
-| `app/2023/` | nfl_recap_db.rds | 1 | 91 | 2023 | 1-14 |
-| `app/2023/` | nfl_round_db.rds | 5 | 22,527 | 2023 | 1-17 |
-| `app/2023/` | nfl_stats_db.rds | 4 | 199,244 | 2019-2023 | 0-17 |
-| `app/2023/` | nfl_teams_db.rds | 2 | 28 | - | - |
 | `app/2023-24-25/` | dudes_simulation_db.rds | 2 | 194,140 | 2023-2024 | 1-11 |
 | `app/2023-24-25/` | ffa_db.rds | 5 | 316,932 | 2023-2025 | 0-17 |
 | `app/2023-24-25/` | nfl_players_db.rds | 2 | 70,181 | - | - |
@@ -111,6 +104,13 @@ Same 7-database schema. Rows = summed across tables in the file.
 | `app/2023_compliance/` | nfl_round_db.rds | 5 | 22,527 | 2023 | 1-17 |
 | `app/2023_compliance/` | nfl_stats_db.rds | 4 | 199,244 | 2019-2023 | 0-17 |
 | `app/2023_compliance/` | nfl_teams_db.rds | 2 | 28 | - | - |
+| `archive/app-2023-raw/` | dudes_simulation_db.rds | 2 | 156,532 | 2023 | 1-11 |
+| `archive/app-2023-raw/` | ffa_db.rds | 5 | 151,253 | 2023 | 1-17 |
+| `archive/app-2023-raw/` | nfl_players_db.rds | 2 | 26,187 | - | - |
+| `archive/app-2023-raw/` | nfl_recap_db.rds | 1 | 91 | 2023 | 1-14 |
+| `archive/app-2023-raw/` | nfl_round_db.rds | 5 | 22,527 | 2023 | 1-17 |
+| `archive/app-2023-raw/` | nfl_stats_db.rds | 4 | 199,244 | 2019-2023 | 0-17 |
+| `archive/app-2023-raw/` | nfl_teams_db.rds | 2 | 28 | - | - |
 | `etl/2020/` | dudes_simulation_db.rds | 2 | 49,226 | 2020 | 1-16 |
 | `etl/2020/` | ffa_db.rds | 5 | 95,754 | 2020 | 1-16 |
 | `etl/2020/` | nfl_players_db.rds | 2 | 19,018 | - | - |
@@ -118,12 +118,12 @@ Same 7-database schema. Rows = summed across tables in the file.
 | `etl/2020/` | nfl_round_db.rds | 5 | 7,727 | 2020 | 1-16 |
 | `etl/2020/` | nfl_stats_db.rds | 4 | 464,737 | 2020 | 1-16 |
 | `etl/2020/` | nfl_teams_db.rds | 2 | 28 | - | - |
-| `etl/2021/` | dudes_simulation_db.rds | 2 | 2,470 | 2021 | 1 |
-| `etl/2021/` | ffa_db.rds | 5 | 8,652 | 2021 | 1 |
+| `etl/2021/` | dudes_simulation_db.rds | 2 | 49,152 | 2021 | 1-17 |
+| `etl/2021/` | ffa_db.rds | 5 | 110,951 | 2021 | 1-17 |
 | `etl/2021/` | nfl_players_db.rds | 2 | 18,506 | - | - |
 | `etl/2021/` | nfl_recap_db.rds | 1 | 0 | - | - |
 | `etl/2021/` | nfl_round_db.rds | 5 | 8,875 | 2021 | 1-17 |
-| `etl/2021/` | nfl_stats_db.rds | 4 | 64,969 | 2021 | 1-17 |
+| `etl/2021/` | nfl_stats_db.rds | 4 | 563,954 | 2021 | 1-17 |
 | `etl/2021/` | nfl_teams_db.rds | 2 | 28 | - | - |
 | `etl/2022/` | dudes_simulation_db.rds | 2 | 47,946 | 2022 | 1-17 |
 | `etl/2022/` | ffa_db.rds | 5 | 86,443 | 2022 | 1-17 |
