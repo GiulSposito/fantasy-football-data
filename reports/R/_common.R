@@ -1,6 +1,24 @@
 # Shared helpers for reports/*.qmd. Source with source("R/_common.R").
 # All paths are relative to reports/ (quarto project root for this folder).
 
+# week == 0 means three different, non-interchangeable things depending on
+# the table -- it is not a general "season-long" marker:
+#   - nfl_players_points / nfl_players_stats: a precomputed SEASON-TOTAL row
+#     (verified == sum(pts) for week 1:17 of that player/season), present in
+#     every season 2019-2025. Including it in a per-game sum/join
+#     double-counts the season total or passes it off as a single game.
+#   - ffa_projtable / ffa_proj_source_points: a one-off rest-of-season
+#     projection snapshot that exists ONLY for season 2025 (tag == "final",
+#     taken 2025-10-06) -- not a systematic season-long dataset across
+#     2020-2025, so it's excluded from analysis rather than given its own
+#     report (too thin to support one).
+#   - nfl_players_adv_stats: a draft/ADP snapshot (only averageDraftPosition
+#     populated), unrelated to the two patterns above. Not used by any
+#     report currently.
+# Use only_games() to drop week == 0 before any per-game analysis on the
+# first two tables; read week == 0 directly when a season total is wanted.
+only_games <- function(df) dplyr::filter(df, week > 0)
+
 db_path <- function(name) file.path("..", "dataset", paste0(name, ".rds"))
 
 # ffa_projtable / ffa_proj_source_points$id is a character ffanalytics id;

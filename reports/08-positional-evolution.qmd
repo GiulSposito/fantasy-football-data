@@ -34,7 +34,10 @@ ground to WRs and whether scoring has concentrated in fewer positions or
 spread out.
 
 ```{r stacked-share}
+# week == 0 is the precomputed season-total row -- use it directly instead
+# of summing every weekly row (which would double the total).
 by_season_pos <- joined |>
+  filter(week == 0) |>
   group_by(season, pos = position) |>
   summarise(total_pts = sum(pts), .groups = "drop")
 
@@ -48,7 +51,10 @@ by_season_pos |>
 ```
 
 ```{r avg-trend}
+# per-game average, so week == 0 (season total) must be excluded here even
+# though the previous chunk uses it for total_pts.
 by_season_pos_avg <- joined |>
+  only_games() |>
   group_by(season, pos = position) |>
   summarise(avg_pts = mean(pts), .groups = "drop")
 

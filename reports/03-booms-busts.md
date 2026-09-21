@@ -1,7 +1,7 @@
 # Booms, Busts and Surprises
 
 
-    booms-busts bridge match rate: 18162 / 27486 = 66.1%
+    booms-busts bridge match rate: 17621 / 26876 = 65.6%
 
 ## Executive summary
 

@@ -15,13 +15,15 @@ nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
 
 actual <- nfl_stats_db$nfl_players_points |>
   filter(!is.na(pts)) |>
-  mutate(season = as.integer(season), week = as.integer(week))
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
 
 src <- ffa_db$ffa_proj_source_points |>
   filter_final() |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
-  filter(!is.na(playerId))
+  filter(!is.na(playerId)) |>
+  only_games()
 
 joined <- src |> inner_join(actual, by = c("playerId", "season", "week"))
 

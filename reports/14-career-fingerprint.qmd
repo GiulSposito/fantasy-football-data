@@ -23,7 +23,11 @@ joined <- points |> inner_join(players, by = "playerId")
 
 TOP_N <- 10
 
+# week == 0 is the precomputed season-total row -- sum those (one per
+# player-season) for career_pts instead of summing every weekly row, which
+# would double the total.
 top_players <- joined |>
+  filter(week == 0) |>
   group_by(playerId, name) |>
   summarise(career_pts = sum(pts), .groups = "drop") |>
   slice_max(career_pts, n = TOP_N)
@@ -36,7 +40,10 @@ dataset's coverage (2020-2025, not back to 2019). Color intensity =
 points; gaps = bye weeks, injuries or seasons not played.
 
 ```{r heatmap}
+# exclude week == 0 (season total) from the per-week grid, or it would
+# render as a phantom "week 0" tile with a season-scale point value.
 joined |>
+  only_games() |>
   semi_join(top_players, by = "playerId") |>
   mutate(name = factor(name, levels = top_players$name)) |>
   ggplot(aes(week, season, fill = pts)) +

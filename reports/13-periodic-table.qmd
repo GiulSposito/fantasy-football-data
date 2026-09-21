@@ -15,7 +15,10 @@ nfl_players_db <- readRDS(db_path("nfl_players_db"))
 
 points <- nfl_stats_db$nfl_players_points |>
   filter(!is.na(pts)) |>
-  mutate(season = as.integer(season), week = as.integer(week))
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  # games/production/volatility are per-game features; week == 0 (the
+  # season-total row) would inflate `games` and distort mean/SD.
+  only_games()
 
 players <- nfl_players_db$nfl_players |>
   select(playerId, name, position) |>

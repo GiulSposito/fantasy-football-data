@@ -16,14 +16,16 @@ nfl_players_db <- readRDS(db_path("nfl_players_db"))
 
 actual <- nfl_stats_db$nfl_players_points |>
   filter(!is.na(pts)) |>
-  mutate(season = as.integer(season), week = as.integer(week))
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
 
 consensus <- ffa_db$ffa_projtable |>
   filter_final() |>
   filter(avg_type == "average") |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
-  filter(!is.na(playerId))
+  filter(!is.na(playerId)) |>
+  only_games()
 
 joined <- consensus |>
   inner_join(actual, by = c("playerId", "season", "week")) |>

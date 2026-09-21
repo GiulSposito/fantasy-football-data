@@ -16,20 +16,23 @@ nfl_players_db <- readRDS(db_path("nfl_players_db"))
 
 actual <- nfl_stats_db$nfl_players_points |>
   filter(!is.na(pts)) |>
-  mutate(season = as.integer(season), week = as.integer(week))
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
 
 consensus <- ffa_db$ffa_projtable |>
   filter_final() |>
   filter(avg_type == "average") |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
-  filter(!is.na(playerId))
+  filter(!is.na(playerId)) |>
+  only_games()
 
 # nfl_player_injury_status has no season/week, only a weekly-snapshot
 # timestamp. assign_week() maps each snapshot to the nearest preceding
 # week boundary using ffa_projtable(final)'s own timestamps as the
-# calendar -- an approximation, not the official NFL schedule.
-calendar <- ffa_db$ffa_projtable |> filter_final() |> mutate(season = as.integer(season), week = as.integer(week))
+# calendar -- an approximation, not the official NFL schedule. Excludes
+# week == 0 (a season-total/ROS row, not a weekly calendar boundary).
+calendar <- ffa_db$ffa_projtable |> filter_final() |> mutate(season = as.integer(season), week = as.integer(week)) |> only_games()
 
 injury <- nfl_players_db$nfl_player_injury_status |>
   bind_cols(assign_week(nfl_players_db$nfl_player_injury_status$timestamp, calendar)) |>
@@ -114,6 +117,9 @@ summary_by_status |>
 ```
 
 ```{r next-week}
+# actual is already only_games()-filtered, so a week==1 status row's
+# week - 1 lookup correctly finds no match (there is no week 0 game) instead
+# of accidentally landing on the week==0 season-total row.
 next_week_actual <- actual |> mutate(week = week - 1) |> rename(pts_next_week = pts)
 
 by_status |>

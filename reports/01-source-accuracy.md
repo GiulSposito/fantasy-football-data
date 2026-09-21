@@ -1,11 +1,11 @@
 # Who Predicts Fantasy Football Best?
 
 
-    source-accuracy bridge match rate: 25444 / 45975 = 55.3%
+    source-accuracy bridge match rate: 24903 / 45365 = 54.9%
 
 ## Executive summary
 
-Across 25444 source-level projections matched to real results, we rank
+Across 24903 source-level projections matched to real results, we rank
 the 5 ffanalytics sources with enough matched observations (≥200) to
 compare fairly by mean absolute error (MAE), check whether the best
 source holds up by position and by season, and see whether the
@@ -36,7 +36,7 @@ rank noise, not signal.
 
 This is where the data says something more interesting than a
 correlation heatmap: among the 5 reliable sources, **0 player-weeks**
-(of 25280) have more than one of them projecting the same game at the
+(of 24753) have more than one of them projecting the same game at the
 same time. Coverage is fragmented by season instead (see the table
 above) – CBS dominates most years, ESPN mostly 2022+,
 FantasyPros/FantasySharks/FFToday thinner slices throughout – so there’s
@@ -49,23 +49,23 @@ ensembling.
 
 ## Rankings (all sources, including thin-coverage ones)
 
-| data_src      |     n |   mae |  rmse |   bias | reliable |
-|:--------------|------:|------:|------:|-------:|:---------|
-| FantasySharks |   268 |  2.80 |  4.52 |   1.14 | TRUE     |
-| FantasyPros   |  2157 |  2.81 |  5.70 |   0.98 | TRUE     |
-| FFToday       |   635 |  5.30 |  7.28 |   0.73 | TRUE     |
-| CBS           | 19813 |  6.28 | 17.94 |   2.35 | TRUE     |
-| ESPN          |  2407 |  6.60 | 18.71 |  -0.98 | TRUE     |
-| Yahoo         |    84 |  1.63 |  3.53 |   1.15 | FALSE    |
-| NumberFire    |    31 |  1.76 |  4.05 |   1.39 | FALSE    |
-| FleaFlicker   |    18 |  2.75 |  3.97 |   0.37 | FALSE    |
-| NFL           |    16 |  7.47 | 14.91 |   6.05 | FALSE    |
-| FanDuel       |    12 | 10.66 | 16.44 |   5.43 | FALSE    |
-| RTSports      |     3 | 17.70 | 19.42 | -17.70 | FALSE    |
+| data_src      |     n |  mae | rmse | bias | reliable |
+|:--------------|------:|-----:|-----:|-----:|:---------|
+| FantasyPros   |  2083 | 2.39 | 3.76 | 0.86 | TRUE     |
+| FantasySharks |   268 | 2.80 | 4.52 | 1.14 | TRUE     |
+| ESPN          |  2287 | 3.93 | 5.70 | 0.77 | TRUE     |
+| CBS           | 19480 | 4.64 | 6.41 | 0.65 | TRUE     |
+| FFToday       |   635 | 5.30 | 7.28 | 0.73 | TRUE     |
+| NFL           |    12 | 1.21 | 1.51 | 0.16 | FALSE    |
+| Yahoo         |    84 | 1.63 | 3.53 | 1.15 | FALSE    |
+| NumberFire    |    31 | 1.76 | 4.05 | 1.39 | FALSE    |
+| FanDuel       |     5 | 1.82 | 2.92 | 1.06 | FALSE    |
+| FleaFlicker   |    18 | 2.75 | 3.97 | 0.37 | FALSE    |
 
 **Takeaway:** among sources with reliable sample sizes, CBS and ESPN
-carry almost all of the matched observations and sit mid-pack on MAE;
-FantasyPros and FantasySharks are competitive on far fewer projections.
-The near-zero overlap between sources (previous section) means “ensemble
-of individual sources” isn’t really testable in this dataset — see
-[02-wisdom-of-crowd](02-wisdom-of-crowd.md) for what *is* testable.
+carry almost all of the matched observations but sit at the back of the
+pack on MAE; FantasyPros and FantasySharks, on far fewer projections,
+are the most accurate. The near-zero overlap between sources (previous
+section) means “ensemble of individual sources” isn’t really testable in
+this dataset — see [02-wisdom-of-crowd](02-wisdom-of-crowd.md) for what
+*is* testable.

@@ -1,7 +1,7 @@
 # Which Position Is Hardest to Predict?
 
 
-    error-by-position bridge match rate: 18162 / 27486 = 66.1%
+    error-by-position bridge match rate: 17621 / 26876 = 65.6%
 
 ## Executive summary
 
@@ -16,14 +16,14 @@ struggles with most.
 
 ![](07-error-by-position_files/figure-commonmark/ranking-1.png)
 
-| pos |    n |  mae |  rmse | bias |
-|:----|-----:|-----:|------:|-----:|
-| QB  | 2148 | 6.96 | 14.93 | 0.07 |
-| WR  | 5485 | 5.88 | 11.80 | 0.43 |
-| RB  | 4338 | 5.45 | 10.98 | 0.44 |
-| DST | 1515 | 4.78 |  6.97 | 0.46 |
-| TE  | 3067 | 4.50 |  8.43 | 1.19 |
-| K   | 1609 | 4.00 |  7.70 | 0.78 |
+| pos |    n |  mae | rmse | bias |
+|:----|-----:|-----:|-----:|-----:|
+| QB  | 2081 | 5.55 | 7.18 | 0.08 |
+| WR  | 5309 | 4.78 | 6.54 | 0.77 |
+| RB  | 4217 | 4.48 | 6.24 | 0.47 |
+| DST | 1483 | 4.38 | 5.71 | 0.27 |
+| TE  | 2958 | 3.70 | 5.24 | 1.18 |
+| K   | 1573 | 3.30 | 4.21 | 0.69 |
 
 **Takeaway:** high-usage skill positions with more scoring pathways
 (receiving + rushing, or big-play upside) tend to have both higher

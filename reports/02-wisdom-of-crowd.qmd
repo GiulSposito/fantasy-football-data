@@ -17,13 +17,15 @@ nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
 # (tracked but did not play) and must be dropped before any error metric.
 actual <- nfl_stats_db$nfl_players_points |>
   filter(!is.na(pts)) |>
-  mutate(season = as.integer(season), week = as.integer(week))
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
 
 src <- ffa_db$ffa_proj_source_points |>
   filter_final() |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
-  filter(!is.na(playerId))
+  filter(!is.na(playerId)) |>
+  only_games()
 
 joined <- src |> inner_join(actual, by = c("playerId", "season", "week"))
 
@@ -41,6 +43,8 @@ reliable_sources <- joined |>
 
 overlap <- ffa_db$ffa_proj_source_points |>
   filter(tag == "final") |>
+  mutate(week = as.integer(week)) |>
+  only_games() |>
   distinct(season, week, id, data_src) |>
   count(season, week, id, name = "n_sources")
 ```
@@ -78,6 +82,7 @@ consensus <- ffa_db$ffa_projtable |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
   filter(!is.na(playerId)) |>
+  only_games() |>
   inner_join(actual, by = c("playerId", "season", "week")) |>
   group_by(method = avg_type) |>
   reframe(error_metrics(pts, points)) |>
@@ -100,6 +105,7 @@ consensus_by_pos <- ffa_db$ffa_projtable |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
   filter(!is.na(playerId)) |>
+  only_games() |>
   inner_join(actual, by = c("playerId", "season", "week")) |>
   group_by(avg_type, pos) |>
   reframe(error_metrics(pts, points))

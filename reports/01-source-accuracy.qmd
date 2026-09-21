@@ -19,12 +19,14 @@ nfl_stats_db <- readRDS(db_path("nfl_stats_db"))
 # actual comparable observations, not rows that can never produce an error.
 actual <- nfl_stats_db$nfl_players_points |>
   filter(!is.na(pts)) |>
-  mutate(season = as.integer(season), week = as.integer(week))
+  mutate(season = as.integer(season), week = as.integer(week)) |>
+  only_games()
 
 src <- ffa_db$ffa_proj_source_points |>
   filter_final() |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
-  clean_positions()
+  clean_positions() |>
+  only_games()
 
 joined <- src |>
   filter(!is.na(playerId)) |>
@@ -92,6 +94,7 @@ consensus <- ffa_db$ffa_projtable |>
   bridge_ffa_to_nfl(ffa_db$ffa_player_ids) |>
   clean_positions() |>
   filter(!is.na(playerId)) |>
+  only_games() |>
   inner_join(actual, by = c("playerId", "season", "week"))
 
 by_consensus <- consensus |>
@@ -195,8 +198,9 @@ by_source_all |>
 ```
 
 **Takeaway:** among sources with reliable sample sizes, CBS and ESPN carry
-almost all of the matched observations and sit mid-pack on MAE; FantasyPros
-and FantasySharks are competitive on far fewer projections. The near-zero
+almost all of the matched observations but sit at the back of the pack on
+MAE; FantasyPros and FantasySharks, on far fewer projections, are the most
+accurate. The near-zero
 overlap between sources (previous section) means "ensemble of individual
 sources" isn't really testable in this dataset — see
 [02-wisdom-of-crowd](02-wisdom-of-crowd.md) for what *is* testable.

@@ -1,5 +1,5 @@
 {
-  "hash": "3388b66405df2dda7a6570fb1da9f531",
+  "hash": "cfb8a7930706f5d08e0dbaca1249b8a0",
   "result": {
     "engine": "knitr",
     "markdown": "---\ntitle: \"Career Fingerprints\"\nsubtitle: \"Weekly production heatmaps for the top scorers, 2020-2025\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n\n:::\n\n\n## Executive summary\n\nWeekly fantasy points for the top 10 all-time scorers in this\ndataset's coverage (2020-2025, not back to 2019). Color intensity =\npoints; gaps = bye weeks, injuries or seasons not played.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](14-career-fingerprint_files/figure-commonmark/heatmap-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](14-career-fingerprint_files/figure-commonmark/ranking-1.png)\n:::\n:::\n\n\n**Takeaway:** a consistently bright row is a durable, healthy star; a row\nwith a dark gap mid-career marks an injury or decline that's easy to miss\nin a season-average stat line but obvious here.\n",

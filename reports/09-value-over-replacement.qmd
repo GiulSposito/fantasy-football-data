@@ -22,6 +22,9 @@ players <- nfl_players_db$nfl_players |>
   clean_positions(pos_col = position)
 
 season_totals <- points |>
+  # week == 0 is the precomputed season-total row -- read it directly
+  # instead of summing every weekly row (which would double the total).
+  filter(week == 0) |>
   inner_join(players, by = "playerId") |>
   group_by(season, playerId, name, pos = position) |>
   summarise(season_pts = sum(pts), .groups = "drop") |>

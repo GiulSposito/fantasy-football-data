@@ -1,5 +1,5 @@
 {
-  "hash": "a82f8b67844fd49d5485165c42649d06",
+  "hash": "f2faad4ab8fbbda2d4a9c4e5133addcd",
   "result": {
     "engine": "knitr",
     "markdown": "---\ntitle: \"The Shifting Shape of Fantasy Scoring\"\nsubtitle: \"Positional production, 2020-2025\"\n---\n\n\n::: {.cell}\n\n:::\n\n\n\n::: {.cell}\n::: {.cell-output .cell-output-stdout}\n\n```\npositional-evolution player-metadata match rate: 42446 / 42446 = 100.0%\n```\n\n\n:::\n:::\n\n\n## Executive summary\n\nAverage fantasy production by position, season and week, 2020-2025 (this\ndataset's coverage -- not back to 2019). We look at whether RBs have lost\nground to WRs and whether scoring has concentrated in fewer positions or\nspread out.\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](08-positional-evolution_files/figure-commonmark/stacked-share-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](08-positional-evolution_files/figure-commonmark/avg-trend-1.png)\n:::\n:::\n\n\n\n::: {.cell}\n::: {.cell-output-display}\n![](08-positional-evolution_files/figure-commonmark/rb-wr-1.png)\n:::\n:::\n\n\n**Takeaway:** a rising WR-minus-RB gap over the seasons is data-level\nconfirmation of the \"Zero RB\" drafting theory; a flat or shrinking gap\nwould argue against it for this league's scoring settings.\n",

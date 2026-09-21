@@ -18,11 +18,11 @@ simulations are calibrated, then how injuries, scarcity, schedule luck
 and manager decisions turn “prediction” into “outcome.”
 
 **Headline numbers** (recomputed live from `dataset/`, not hardcoded):
-the most accurate reliably-sampled projection source is
-**FantasySharks** (MAE 2.8 points, n=268); 5 of the 11 scraped sources
-have enough matched observations (≥200) to compare fairly; and
-projections matched to real results at an **55.3%** rate overall,
-reflecting real gaps (byes, unmatched IDs), not a data bug.
+the most accurate reliably-sampled projection source is **FantasyPros**
+(MAE 2.39 points, n=2083); 5 of the 11 scraped sources have enough
+matched observations (≥200) to compare fairly; and projections matched
+to real results at an **54.9%** rate overall, reflecting real gaps
+(byes, unmatched IDs), not a data bug.
 
 ## Reports
 

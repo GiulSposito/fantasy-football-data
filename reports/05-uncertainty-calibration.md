@@ -1,7 +1,7 @@
 # Does Projection Uncertainty Mean Anything?
 
 
-    uncertainty-calibration bridge match rate (incl. sd_pts/floor/ceiling non-NA): 18023 / 27486 = 65.6%
+    uncertainty-calibration bridge match rate (incl. sd_pts/floor/ceiling non-NA): 17501 / 26876 = 65.1%
 
 ## Executive summary
 
@@ -21,9 +21,9 @@ should actually show larger errors, and `actual` should land inside
 
 | uncertainty |  coverage |    n |
 |:------------|----------:|-----:|
-| low         | 0.1566245 | 6008 |
-| medium      | 0.2103862 | 6008 |
-| high        | 0.2909938 | 6007 |
+| low         | 0.1540967 | 5834 |
+| medium      | 0.2106616 | 5834 |
+| high        | 0.2633293 | 5833 |
 
 **Takeaway:** if MAE climbs cleanly from the low to the high `sd_pts`
 tercile, the model’s self-reported uncertainty is doing real work, not
