@@ -11,6 +11,12 @@ real weekly results, injury status, Monte Carlo simulations, and actual
 league rosters/matchups make that chain traceable end to end, not just
 approximated from box scores.
 
+**New here?** [`ARTICLE.md`](ARTICLE.md) is a single guided narrative
+through all 18 reports, written for a fantasy-literate reader rather
+than one already comfortable with R and dm databases – start there for
+the story, come back to the individual reports below for the code and
+every caveat.
+
 The 18 reports below work through that chain: projection accuracy and
 crowd-wisdom first, then how surprising and predictable individual
 players are, then whether the model’s own uncertainty estimates and
